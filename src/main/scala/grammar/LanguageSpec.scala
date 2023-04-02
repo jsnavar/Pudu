@@ -5,7 +5,6 @@ package pudu.grammar
  *  - nonTerminals: a set of [[pudu.grammar.Symbol]] corresponding to non terminals
  *  - terminals: a set of [[pudu.grammar.Symbol]] corresponding to terminals
  *  - startSymbol: the start [[pudu.grammar.Symbol]]
- *  TODO: operator precedence and associativity
  *
  *  Types Tree and Token refer to the types used for NonTerminal and Terminal respectively */
 abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum]:
@@ -25,6 +24,7 @@ abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum]:
   lazy val terminals = rules.flatMap(_.right).diff(nonTerminals)
 
   val start: Symbol
+  val precedence: Precedence = Precedence.empty
 
   /** Rule definition methods. Given a NonTerminal left, a rule can be defined as
     {{{    (left ::= (r1, r2, r3)) { (v1, v2 v3) => ... }      }}}
