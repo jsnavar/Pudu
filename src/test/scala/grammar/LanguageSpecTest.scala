@@ -203,7 +203,7 @@ class LanguageSpecTest extends munit.FunSuite {
     assert(rules.size == 2)
 
     import SimpleArithmetic._
-    val funRule = rules.filter(_.right.head == funcId).head
+    val funRule = rules.find(_.right.head == funcId).get
     assertEquals(funRule.left, expr)
     assertEquals(funRule.right, Seq(funcId, lpar, expr, comma, expr, rpar))
 
@@ -240,7 +240,7 @@ class LanguageSpecTest extends munit.FunSuite {
     assert(rules.size == 2)
 
     import SimpleArithmetic._
-    val funRule = rules.filter(_.right(1) == funcId).head
+    val funRule = rules.find(_.right(1) == funcId).get
     assertEquals(funRule.left, expr)
     assertEquals(funRule.right, Seq(minus, funcId, lpar, expr, comma, expr, rpar))
 
@@ -277,7 +277,7 @@ class LanguageSpecTest extends munit.FunSuite {
     assert(rules.size == 2)
 
     import SimpleArithmetic._
-    val funRule = rules.filter(_.right.head == expr).head
+    val funRule = rules.find(_.right.head == expr).get
     assertEquals(funRule.left, expr)
     assertEquals(funRule.right, Seq(expr, minus, funcId, lpar, expr, comma, expr, rpar))
 
@@ -301,7 +301,7 @@ class LanguageSpecTest extends munit.FunSuite {
       val intLit = Terminal[Token.IntLit]
 
       override val start = expr
-      
+
       (exprList ::= expr) { List(_) }
       (exprList ::= (expr, comma, exprList)) { (exp, _, list) => exp :: list }
 
@@ -327,4 +327,5 @@ class LanguageSpecTest extends munit.FunSuite {
     assertEquals(SimpleArithmetic.nonTerminals, Set(SimpleArithmetic.expr, SimpleArithmetic.exprList))
     assert(SimpleArithmetic.terminals.size == 8)
   }
+
 }

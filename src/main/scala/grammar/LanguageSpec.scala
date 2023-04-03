@@ -33,38 +33,39 @@ abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum]:
   /* (Can this be generated using macros or quote reflection?) */
   extension [R <: Tree] (left: NonTerminal[R])
     protected def ::= [T1 <: Par] (right: Sym[T1])(fn: T1 => R): Unit =
-      rulesSet += Rule1(left, Seq(right), fn)
+      rulesSet += Rule(left, Seq(right), stackFunction(1, fn))
 
     protected def ::= [T1 <: Par, T2 <: Par]
         (right:(Sym[T1], Sym[T2]))(fn: ((T1,T2)) => R): Unit =
-      rulesSet += Rule2(left, Seq(right(0), right(1)), fn)
+      rulesSet += Rule(left, Seq(right(0), right(1)), stackFunction(2, untupled(fn).curried))
 
     protected def ::= [T1 <: Par, T2 <: Par, T3 <: Par]
         (right: (Sym[T1],Sym[T2],Sym[T3]))
         (fn: ((T1,T2,T3)) => R): Unit =
-      rulesSet += Rule3(left, Seq(right(0), right(1), right(2)), fn)
+      rulesSet += Rule(left, Seq(right(0), right(1), right(2)), stackFunction(3, untupled(fn).curried))
 
     protected def ::= [T1 <: Par, T2 <: Par, T3 <: Par, T4 <: Par]
         (right: (Sym[T1],Sym[T2],Sym[T3],Sym[T4]))
         (fn: ((T1,T2,T3,T4)) => R): Unit =
-      rulesSet += Rule4(left, Seq(right(0), right(1), right(2), right(3)), fn)
+      rulesSet += Rule(left, Seq(right(0), right(1), right(2), right(3)), stackFunction(4, untupled(fn).curried))
 
     protected def ::= [T1 <: Par, T2 <: Par, T3 <: Par, T4 <: Par, T5 <: Par]
         (right: (Sym[T1], Sym[T2], Sym[T3], Sym[T4], Sym[T5]))
         (fn: ((T1,T2,T3,T4,T5)) => R): Unit =
-      rulesSet += Rule5(left, Seq(right(0), right(1), right(2), right(3), right(4)), fn)
+      rulesSet += Rule(left, Seq(right(0), right(1), right(2), right(3), right(4)), stackFunction(5, untupled(fn).curried))
 
     protected def ::= [T1 <: Par, T2 <: Par, T3 <: Par, T4 <: Par, T5 <: Par, T6 <: Par]
         (right: (Sym[T1], Sym[T2], Sym[T3], Sym[T4], Sym[T5], Sym[T6]))
         (fn: ((T1,T2,T3,T4,T5,T6)) => R): Unit =
-      rulesSet += Rule6(left, Seq(right(0), right(1), right(2), right(3), right(4), right(5)), fn)
+      rulesSet += Rule(left, Seq(right(0), right(1), right(2), right(3), right(4), right(5)), stackFunction(6, untupled(fn).curried))
 
     protected def ::= [T1 <: Par, T2 <: Par, T3 <: Par, T4 <: Par, T5 <: Par, T6 <: Par, T7 <: Par]
         (right: (Sym[T1], Sym[T2], Sym[T3], Sym[T4], Sym[T5], Sym[T6], Sym[T7]))
         (fn: ((T1,T2,T3,T4,T5,T6,T7)) => R): Unit =
-      rulesSet += Rule7(left, Seq(right(0), right(1), right(2), right(3), right(4), right(5), right(6)), fn)
+      rulesSet += Rule(left, Seq(right(0), right(1), right(2), right(3), right(4), right(5), right(6)), stackFunction(7, untupled(fn).curried))
 
     protected def ::= [T1 <: Par, T2 <: Par, T3 <: Par, T4 <: Par, T5 <: Par, T6 <: Par, T7 <: Par, T8 <: Par]
         (right: (Sym[T1], Sym[T2], Sym[T3], Sym[T4], Sym[T5], Sym[T6], Sym[T7], Sym[T8]))
         (fn: ((T1,T2,T3,T4,T5,T6,T7,T8)) => R): Unit =
-      rulesSet += Rule8(left, Seq(right(0), right(1), right(2), right(3), right(4), right(5), right(6), right(7)), fn)
+      rulesSet += Rule(left, Seq(right(0), right(1), right(2), right(3), right(4), right(5), right(6), right(7)), stackFunction(8, untupled(fn).curried))
+

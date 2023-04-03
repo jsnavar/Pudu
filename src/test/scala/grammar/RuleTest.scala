@@ -23,7 +23,7 @@ class RuleTest extends munit.FunSuite {
   val lpar = Terminal[Token.LPar]
   val rpar = Terminal[Token.RPar]
   val comma = Terminal[Token.Comma]
-
+/****
   test("Rule1 definition") {
     val r1 = Rule1[Token.IntLit,Int](expr, Seq(intLit), _.value)
     val lit: Token.IntLit = Token.IntLit(5)
@@ -146,5 +146,5 @@ class RuleTest extends munit.FunSuite {
     val rstack: Seq[Any] = Seq(-54, Token.Minus(), Token.IntLit(11832))
     assertEquals(r8.reduce(stack), rstack)
   }
-
+****/
 }

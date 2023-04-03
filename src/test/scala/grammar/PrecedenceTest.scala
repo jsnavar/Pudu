@@ -19,8 +19,8 @@ class PrecedenceTest extends munit.FunSuite {
   val minus  = Terminal[Token.Minus]
   val comma  = Terminal[Token.Comma]
 
-  test("non defined") {
-    val p = Precedence.left(plus, minus)
+  test("undefined") {
+    val p = Precedence().left(plus, minus)
     val empty = Precedence.empty
 
     assertEquals(empty.max(plus, times), Side.Neither)
@@ -30,24 +30,23 @@ class PrecedenceTest extends munit.FunSuite {
     assertEquals(p.max(times, times), Side.Neither)
   }
   test("same level") {
-    val left = Precedence.right(times).left(plus, minus)
-    val right = Precedence.right(plus, minus)
-    val nonassoc = Precedence.nonassoc(plus, minus)
+    val left = Precedence().right(times).left(plus, minus)
+    val right = Precedence().right(plus, minus)
+    val nonassoc = Precedence().nonassoc(plus, minus)
 
     assertEquals(left.max(plus, minus), Side.Left)
     assertEquals(right.max(plus, minus), Side.Right)
     assertEquals(nonassoc.max(plus, minus), Side.Neither)
   }
   test("different level") {
-    val p = Precedence.nonassoc(plus, minus).nonassoc(comma).right(times)
+    val p = Precedence().nonassoc(plus, minus).nonassoc(comma).right(times)
 
     assertEquals(p.max(plus, times), Side.Right)
     assertEquals(p.max(times, plus), Side.Left)
   }
-
   test("multiple declarations") {
     intercept[java.lang.IllegalArgumentException] {
-      val p = Precedence.left(plus).right(plus)
+      val p = Precedence().left(plus).right(plus)
     }
   }
 }
