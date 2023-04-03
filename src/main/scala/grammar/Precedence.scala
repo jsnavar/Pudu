@@ -17,8 +17,8 @@ class Precedence(levels: Seq[Assoc], val symPrec: Map[Symbol, Int]):
   /** adds a new precedence level with symbols symbols, and associativity assoc */
   def appended(symbols: Seq[Symbol], assoc: Assoc) =
     val lv = levels.size
-    require(symbols.forall(!symPrec.contains(_)), "Precedence must be declared at most once")
-    Precedence(levels.appended(assoc), symPrec ++ symbols.map(_ -> lv))
+    require(symbols.forall(!symPrec.contains(_)), "Precedence of a symbol must be declared at most once")
+    new Precedence(levels.appended(assoc), symPrec ++ symbols.map(_ -> lv))
 
   /** helper methods */
   def left(symbols: Symbol*) = appended(symbols, Assoc.Left)
@@ -35,11 +35,9 @@ class Precedence(levels: Seq[Assoc], val symPrec: Map[Symbol, Int]):
         case Assoc.Left => Side.Left
         case Assoc.Right => Side.Right
         case Assoc.NonAssoc => Side.Neither
-      else if leftPrec < rightPrec then Side.Right
-      else Side.Left
+      else if leftPrec > rightPrec then Side.Left
+      else Side.Right
 
 object Precedence:
-  def empty = Precedence(Seq.empty[Assoc], Map.empty[Symbol, Int])
-  def left(symbols: Symbol*) = empty.left(symbols:_*)
-  def right(symbols: Symbol*) = empty.right(symbols:_*)
-  def nonassoc(symbols: Symbol*) = empty.nonassoc(symbols:_*)
+  def empty = new Precedence(Seq.empty[Assoc], Map.empty[Symbol, Int])
+  def apply() = empty

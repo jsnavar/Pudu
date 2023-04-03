@@ -7,7 +7,7 @@ package pudu.grammar
  *  and right a sequence of symbols.
  *  It is Serializable in order to allow writing the parser specification
  *  to a file */
-abstract class Rule extends Serializable {
+abstract class Rule extends Serializable:
   val left: Symbol
   val right: Seq[Symbol]
 
@@ -15,16 +15,13 @@ abstract class Rule extends Serializable {
    *  It takes the top right.size elements from the stack, computes the
    *  corresponding value, and returns a new stack with that value on top */
   def reduce(stack: Seq[Any]): Seq[Any]
-}
 
 /** Concrete implementations of Rules follow the standard library approach for
  *  Tuples, Products, and Functions. 
  *  It would be nice to generate this code using metaprogramming, but for now
  *  they are implemented explicitly */
-
 case class Rule1[T1,R](left: NonTerminal[R], right: Seq[Symbol], fn: T1 => R) extends Rule:
   def reduce(stack: Seq[Any]) = fn(stack.head.asInstanceOf[T1]) +: stack.tail
-
 
 /** fn is tupled in order to support syntax { t => ... t._1 ... } and { (arg1, arg2) => ... } */
 case class Rule2[T1,T2,R](left: NonTerminal[R], right: Seq[Symbol], fn:((T1,T2)) => R) extends Rule:

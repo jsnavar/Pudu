@@ -4,12 +4,13 @@ package pudu.grammar
  *  - rules: a set of [[pudu.grammar.Rule]],
  *  - nonTerminals: a set of [[pudu.grammar.Symbol]] corresponding to non terminals
  *  - terminals: a set of [[pudu.grammar.Symbol]] corresponding to terminals
- *  - startSymbol: the start [[pudu.grammar.Symbol]]
+ *  - start: the start symbol of the grammar
+ *  - precedence: precedence and associativity rules
  *
  *  Types Tree and Token refer to the types used for NonTerminal and Terminal respectively */
 abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum]:
   /* As [[pudu.grammar.Symbol]] is not parametrized, and could have subclasses different from
-   * Terminal and NonTerminal, we define the type Sym to mean either a NonTerminal[Tree]
+   * Terminal and NonTerminal, we define the union type Sym to mean either a NonTerminal[Tree]
    * or a Terminal[Token] */
   type Par = Tree | Token
   type Sym[T <: Par] = NonTerminal[T] | Terminal[T]
@@ -29,7 +30,7 @@ abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum]:
   /** Rule definition methods. Given a NonTerminal left, a rule can be defined as
     {{{    (left ::= (r1, r2, r3)) { (v1, v2 v3) => ... }      }}}
     * where the types of v1, v2, and v3 are inferred from 'r1', 'r2', and 'r3' */
-  /* Can this be generated using macros or quote reflection? */
+  /* (Can this be generated using macros or quote reflection?) */
   extension [R <: Tree] (left: NonTerminal[R])
     protected def ::= [T1 <: Par] (right: Sym[T1])(fn: T1 => R): Unit =
       rulesSet += Rule1(left, Seq(right), fn)
