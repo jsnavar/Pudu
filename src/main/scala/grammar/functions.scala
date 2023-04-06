@@ -1,20 +1,28 @@
 package pudu.grammar
 
-/** Transforms a curried function of type T1 => T2 => ... => Tn => R into a function
- *  of type Seq[Any] => Any, which uses the first n elements from the Seq as arguments */
-inline def seq[S, R](inline depth: Int, inline fn: S => R): Seq[Any] => Any =
+/** Transforms a curried function 'f' of type T1 => T2 => ... => Tn => R into
+ *  function calls equivalent to (omitting the asInstanceOf for readability):
+ {{{
+   (args: Seq[ST]) => f(args(0))(args(1))(args(2))...
+ }}}
+ * In the future, the return type should be simplified to Seq[Any] => R, ommiting
+ * the parameter ST. This should be possible using a recursive match type similar
+ * to:
+ {{{
+ type Return[X] = X match
+   case Function1[_,t] => Return[t]
+   case _ => X
+ }}}
+ */
+inline def seq[ST, S, R](inline numPars: Int, inline fn: S => R): Seq[ST] => ST = seq(numPars, 0, fn)
+inline def seq[ST, S, R](inline numPars: Int, inline depth: Int, inline fn: S => R): Seq[ST] => ST =
   (args: Seq[Any]) =>
-    if depth == 1 then fn(args.head.asInstanceOf[S])
+    inline if depth == numPars - 1 then
+      fn(args(depth).asInstanceOf[S]).asInstanceOf[ST]
     else
-      fn(args.head.asInstanceOf[S]) match
+      inline fn(args(depth).asInstanceOf[S]) match
         case nextFn: Function1[_,_] =>
-          seq(depth-1, nextFn)(args.tail)
-
-inline def stackFunction[S, R](inline depth: Int, inline fn: S => R): Seq[Any] => Seq[Any] =
-  (stack: Seq[Any]) =>
-    val (top, bottom) = stack.splitAt(depth)
-    val result = seq(depth, fn)(top)
-    result +: bottom
+          seq(numPars, depth+1, nextFn)(args).asInstanceOf[ST]
 
 inline def untupled[T1, T2, R] = Function.untupled[T1, T2, R]
 inline def untupled[T1, T2, T3, R] = Function.untupled[T1, T2, T3, R]

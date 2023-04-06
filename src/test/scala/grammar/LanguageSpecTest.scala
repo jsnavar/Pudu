@@ -106,7 +106,7 @@ class LanguageSpecTest extends munit.FunSuite {
     assertEquals(firstRule.left, SimpleArithmetic.expr)
     assertEquals(firstRule.right, Seq(SimpleArithmetic.expr, SimpleArithmetic.plus, SimpleArithmetic.expr))
 
-    val stack = Seq(4, Token.Plus(), 4, 2)
+    val stack: Seq[Int|Token] = Seq(4, Token.Plus(), 4, 2)
     assertEquals(firstRule.reduce(stack), Seq(8, 2))
   }
   test("Rule4") {
@@ -137,7 +137,7 @@ class LanguageSpecTest extends munit.FunSuite {
     assertEquals(firstRule.left, SimpleArithmetic.expr)
     assertEquals(firstRule.right, Seq(SimpleArithmetic.minus, SimpleArithmetic.expr, 
                                       SimpleArithmetic.times, SimpleArithmetic.expr))
-    val stack = Seq(Token.Minus(), 4, Token.Times(), 4, 2)
+    val stack: Seq[Int|Token] = Seq(Token.Minus(), 4, Token.Times(), 4, 2)
     assertEquals(firstRule.reduce(stack), Seq(-16, 2))
   }
 
@@ -170,7 +170,7 @@ class LanguageSpecTest extends munit.FunSuite {
     assertEquals(firstRule.left, expr)
     assertEquals(firstRule.right, Seq(lpar, expr, minus, expr, rpar))
 
-    val stack = Seq(Token.LPar(), 4, Token.Minus(), 4, Token.RPar(), 2)
+    val stack: Seq[Int|Token] = Seq(Token.LPar(), 4, Token.Minus(), 4, Token.RPar(), 2)
     assertEquals(firstRule.reduce(stack), Seq(0, 2))
   }
 
@@ -207,7 +207,7 @@ class LanguageSpecTest extends munit.FunSuite {
     assertEquals(funRule.left, expr)
     assertEquals(funRule.right, Seq(funcId, lpar, expr, comma, expr, rpar))
 
-    val stack = Seq(Token.FuncId("pow"), Token.LPar(), 4, Token.Comma(), 4, Token.RPar(), 2)
+    val stack: Seq[Int|Token] = Seq(Token.FuncId("pow"), Token.LPar(), 4, Token.Comma(), 4, Token.RPar(), 2)
     assertEquals(funRule.reduce(stack), Seq(256, 2))
   }
 
@@ -244,7 +244,7 @@ class LanguageSpecTest extends munit.FunSuite {
     assertEquals(funRule.left, expr)
     assertEquals(funRule.right, Seq(minus, funcId, lpar, expr, comma, expr, rpar))
 
-    val stack = Seq(Token.Minus(), Token.FuncId("pow"), Token.LPar(), 4, Token.Comma(), 4, Token.RPar(), 2)
+    val stack: Seq[Int|Token] = Seq(Token.Minus(), Token.FuncId("pow"), Token.LPar(), 4, Token.Comma(), 4, Token.RPar(), 2)
     assertEquals(funRule.reduce(stack), Seq(-256, 2))
   }
 
@@ -281,7 +281,7 @@ class LanguageSpecTest extends munit.FunSuite {
     assertEquals(funRule.left, expr)
     assertEquals(funRule.right, Seq(expr, minus, funcId, lpar, expr, comma, expr, rpar))
 
-    val stack = Seq(1024, Token.Minus(), Token.FuncId("pow"), Token.LPar(), 4, Token.Comma(), 4, Token.RPar(), 2)
+    val stack: Seq[Int|Token] = Seq(1024, Token.Minus(), Token.FuncId("pow"), Token.LPar(), 4, Token.Comma(), 4, Token.RPar(), 2)
     assertEquals(funRule.reduce(stack), Seq(768, 2))
   }
 
