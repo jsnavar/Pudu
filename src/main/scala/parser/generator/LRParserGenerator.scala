@@ -1,6 +1,7 @@
 package pudu.parser.generator
 
 import pudu.grammar._
+import pudu.parser._
 
 /** Items are rules with a dot somewhere in the right side. This is represented with two Seq, for before
  *  and after the dot */
@@ -11,14 +12,20 @@ case class Item[T,ST](left: NonTerminal[T], before: Seq[Symbol], after: Seq[Symb
 extension[T,ST] (rule: Rule[T,ST])
   def toItem: Item[T,ST] = Item(rule.left, Seq.empty[Symbol], rule.right, rule)
 
-trait LRParserGenerator[Tree, Token <: scala.reflect.Enum]:
+abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[Tree,Token]) extends ParserGenerator[Tree, Token]:
   type RuleT = Rule[Tree, Tree|Token]
   type ItemT = Item[Tree, Tree|Token]
   /** A state is just a set of Items. This may be changed in the future */
   type State = Set[ItemT]
 
+  val rules = lang.rules
+  val terminals = lang.terminals
+  val nonTerminals = lang.nonTerminals
+  val symbols = terminals ++ nonTerminals
+  val precedence = lang.precedence
+
   /** Closure of a state. Follows the standard definition */
-  def closure(rules: Set[RuleT])(state: State): State =
+  def closure(state: State): State =
     stateClosure(state, rules.map(_.toItem))
 
   def stateClosure(state: State, candidates: Set[ItemT]): State =

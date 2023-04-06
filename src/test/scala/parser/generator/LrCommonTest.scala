@@ -2,7 +2,8 @@ import pudu.grammar._
 import pudu.parser.generator._
 
 class LrCommonTest extends munit.FunSuite {
-  object TestLR extends LRParserGenerator[Int|List[Int], Token]
+  object TestLR extends LRParserGenerator(SimpleArithmetic):
+      def apply: Iterator[Token] => Int = ???
 
   test("Item equality") {
     import SimpleArithmetic._
@@ -61,7 +62,7 @@ class LrCommonTest extends munit.FunSuite {
     // expr ::= funcId lpar . exprList rpar
     val startItem = rules.filter(_.right.head == funcId).map(_.toItem.shift.shift).head
 
-    val cls = TestLR.closure(rules)(Set(startItem))
+    val cls = TestLR.closure(Set(startItem))
 
     assertEquals(cls, rules.map(_.toItem) + startItem)
   }
