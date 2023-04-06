@@ -2,20 +2,20 @@ import pudu.grammar._
 import pudu.parser.generator._
 
 class LrCommonTest extends munit.FunSuite {
+  import SimpleArithmetic._
   object TestLR extends LRParserGenerator(SimpleArithmetic):
       def apply: Iterator[Token] => Int = ???
 
-  test("Item equality") {
-    import SimpleArithmetic._
+  def select(f: TestLR.RuleT => Boolean): TestLR.State =
+    rules.filter(f).map(_.toItem)
 
+  test("Item equality") {
     val rule = rules.filter(_.right == Seq(expr)).head
 
     assertEquals(rule.toItem, rule.toItem)
   }
 
   test("Item shift once") {
-    import SimpleArithmetic._
-
     val filtered = rules.filter(_.left == exprList)
     assertEquals(filtered.size, 2)
 
@@ -29,11 +29,9 @@ class LrCommonTest extends munit.FunSuite {
   }
 
   test("Item shift twice") {
-    import SimpleArithmetic._
-
-    val filtered = rules.filter(_.left == exprList)
-                          .map(_.toItem).map(_.shift)
-                          .filterNot(_.after.isEmpty).map(_.shift)
+    val filtered = select(_.left == exprList)
+      .map(_.shift)
+      .filterNot(_.after.isEmpty).map(_.shift)
 
     assertEquals(filtered.size, 1)
     val item = filtered.head
@@ -42,8 +40,6 @@ class LrCommonTest extends munit.FunSuite {
   }
 
   test("Closure 1") {
-    import SimpleArithmetic._
-
     val state = Set(rules.filter(_.right == Seq(expr)).head.toItem)
     val candidates = rules.map(_.toItem)
 
@@ -51,19 +47,50 @@ class LrCommonTest extends munit.FunSuite {
 
     val diff = candidates -- res
 
-    val expDiff = rules.filter(_.right.contains(comma)).map(_.toItem)
+    val expDiff = select(_.right.contains(comma))
     assertEquals(diff, expDiff)
     assertEquals(diff.size, 1)
     assertEquals(diff.head.after, Seq(expr, comma, exprList))
   }
 
   test("Closure 2") {
-    import SimpleArithmetic._
     // expr ::= funcId lpar . exprList rpar
-    val startItem = rules.filter(_.right.head == funcId).map(_.toItem.shift.shift).head
+    val startItem = select(_.right.head == funcId).map(_.shift.shift).head
 
     val cls = TestLR.closure(Set(startItem))
 
     assertEquals(cls, rules.map(_.toItem) + startItem)
   }
+
+  test("GOTO emtpy") {
+    // expr ::= funcId lpar . exprList rpar
+    val state = select(_.right.head == funcId).map(_.shift.shift)
+    assertEquals(TestLR.goto(state, comma), Set())
+  }
+  test("GOTO same") {
+    // expr ::= funcId lpar . exprList rpar
+    val state = select(_.right.head == funcId).map(_.shift.shift)
+    assertEquals(TestLR.goto(state, exprList), state.map(_.shift))
+  }
+
+  test("GOTO 3") {
+    // expr ::= expr . times expr
+    val state = select(_.right.contains(times)).map(_.shift)
+
+    assertEquals(TestLR.goto(state, times), state.map(_.shift) ++ rules.filter(_.left == expr).map(_.toItem))
+  }
+  test("GOTO all") {
+    val state = select(r => r.left == expr && r.right.head == expr)
+      .map(_.shift)
+    assertEquals(state.size, 3)
+
+    val gotoAll = TestLR.goto(state)
+    assertEquals(gotoAll.size, 3)
+    assertEquals(gotoAll.keys.toSet, Set(plus, minus, times))
+
+    assertEquals(gotoAll(plus).toSet, TestLR.goto(state, plus))
+    assertEquals(gotoAll(minus).toSet, TestLR.goto(state, minus))
+    assertEquals(gotoAll(times).toSet, TestLR.goto(state, times))
+  }
+
 }

@@ -33,3 +33,12 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     val newItems = candidates.filter((item: ItemT) => starting.contains(item.left))
     if newItems.isEmpty then state
     else stateClosure(state ++ newItems, candidates -- newItems)
+
+  def goto(state: State, symbol: Symbol): State =
+    val nextKernel = state.filterNot(_.after.isEmpty).filter(_.after.head == symbol)
+    val shifted = nextKernel.map(_.shift)
+    closure(shifted)
+
+  def goto(state: State): Map[Symbol, State] =
+    val nonEmpty = state.filterNot(_.after.isEmpty)
+    nonEmpty.groupBy(_.after.head).map((symbol, state) => (symbol, closure(state.map(_.shift))))
