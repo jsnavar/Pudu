@@ -40,7 +40,7 @@ class LrCommonTest extends munit.FunSuite {
   }
 
   test("Closure 1") {
-    val state = Set(rules.filter(_.right == Seq(expr)).head.toItem)
+    val state = select(_.right == Seq(expr))
     val candidates = rules.map(_.toItem)
 
     val res = TestLR.stateClosure(state, candidates)
@@ -92,5 +92,9 @@ class LrCommonTest extends munit.FunSuite {
     assertEquals(gotoAll(minus).toSet, TestLR.goto(state, minus))
     assertEquals(gotoAll(times).toSet, TestLR.goto(state, times))
   }
-
+  test("first") {
+    val fr = TestLR.first
+    assertEquals(fr(expr), Set(intLit, funcId, lpar))
+    assertEquals(fr(exprList), Set(intLit, funcId, lpar))
+  }
 }

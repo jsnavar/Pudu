@@ -31,6 +31,7 @@ object SimpleArithmetic extends LanguageSpec[Int|List[Int], Token]:
   (exprList ::= (expr, comma, exprList)) { (exp, _, list) => exp :: list }
 
   (expr ::= intLit) { _.value }
+  (expr ::= (lpar, expr, rpar)) { _._2 }
   (expr ::= (expr, plus, expr)) { t => t._1 + t._3 }
   (expr ::= (expr, minus, expr)) { (exp1,_,exp2) => exp1 - exp2 }
   (expr ::= (expr, times, expr)) { t => t._1 * t._3 }

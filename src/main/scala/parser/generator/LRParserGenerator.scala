@@ -19,10 +19,14 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
   type State = Set[ItemT]
 
   val rules = lang.rules
+  val precedence = lang.precedence
+
   val terminals = lang.terminals
   val nonTerminals = lang.nonTerminals
   val symbols = terminals ++ nonTerminals
-  val precedence = lang.precedence
+
+  def isTerminal(symbol: Symbol) = terminals.contains(symbol)
+  def isNonTerminal(symbol: Symbol) = nonTerminals.contains(symbol)
 
   /** Closure of a state. Follows the standard definition */
   def closure(state: State): State =
@@ -34,11 +38,38 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     if newItems.isEmpty then state
     else stateClosure(state ++ newItems, candidates -- newItems)
 
+  /** goto(state, symbol) follows the standard definition */
   def goto(state: State, symbol: Symbol): State =
     val nextKernel = state.filterNot(_.after.isEmpty).filter(_.after.head == symbol)
     val shifted = nextKernel.map(_.shift)
     closure(shifted)
 
+  /** computes the goto of every relevant symbol in 'state', returning a map such that
+   *  goto(state)(symbol) := goto(state, symbol) */
   def goto(state: State): Map[Symbol, State] =
-    val nonEmpty = state.filterNot(_.after.isEmpty)
-    nonEmpty.groupBy(_.after.head).map((symbol, state) => (symbol, closure(state.map(_.shift))))
+    state.filterNot(_.after.isEmpty)
+      .groupBy(_.after.head)
+      .map((symbol, state) => (symbol, closure(state.map(_.shift))))
+
+  /** Pudu does not support null productions, so first reduces to reachability.
+   *  We compute that using a fixed point */
+  def first: Map[Symbol, Set[Symbol]] =
+    // we only need the first symbol in each rule:
+    val edges = rules.map(rule => rule.left -> rule.right.head)
+    def firstFP(current: Set[(Symbol, Symbol)]): Set[(Symbol, Symbol)] =
+      //compute the new pairs, using a for expression
+      val next = for
+        (el, er) <- edges
+        (pl, pr) <- current
+        if pl == er
+        if !current.contains((el, pr))
+      yield (el, pr)
+      if next.isEmpty then current
+      else firstFP(current ++ next)
+    val start = terminals.map(t => t -> t)
+    /* firstFP(start) contains pairs (N, T), such that terminal T belongs
+     * to first(N) */
+    firstFP(start).groupBy(_._1)
+      .map((l, r) => l -> r.map(_._2))
+
+  def follow(symbol: Symbol): Set[Symbol] = ???
