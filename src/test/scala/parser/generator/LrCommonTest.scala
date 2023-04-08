@@ -82,19 +82,26 @@ class LrCommonTest extends munit.FunSuite {
   test("GOTO all") {
     val state = select(r => r.left == expr && r.right.head == expr)
       .map(_.shift)
-    assertEquals(state.size, 3)
+    assertEquals(state.size, 4)
 
     val gotoAll = TestLR.goto(state)
-    assertEquals(gotoAll.size, 3)
-    assertEquals(gotoAll.keys.toSet, Set(plus, minus, times))
+    assertEquals(gotoAll.size, 4)
+    assertEquals(gotoAll.keys.toSet, Set(plus, minus, times, eofTerminal))
 
     assertEquals(gotoAll(plus).toSet, TestLR.goto(state, plus))
     assertEquals(gotoAll(minus).toSet, TestLR.goto(state, minus))
     assertEquals(gotoAll(times).toSet, TestLR.goto(state, times))
   }
   test("first") {
-    val fr = TestLR.first
-    assertEquals(fr(expr), Set(intLit, funcId, lpar))
-    assertEquals(fr(exprList), Set(intLit, funcId, lpar))
+    val first = TestLR.first
+    assertEquals(first(expr), Set(intLit, funcId, lpar))
+    assertEquals(first(exprList), Set(intLit, funcId, lpar))
+    assertEquals(first(plus), Set(plus))
+  }
+
+  test("follow") {
+    val follow = TestLR.follow
+    assertEquals(follow(expr), Set(rpar, plus, times, minus, comma, eof))
+    assertEquals(Set(rpar), follow(exprList))
   }
 }

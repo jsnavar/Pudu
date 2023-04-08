@@ -24,12 +24,15 @@ object SimpleArithmetic extends LanguageSpec[Int|List[Int], Token]:
   val comma  = Terminal[Token.Comma]
   val funcId = Terminal[Token.FuncId]
   val intLit = Terminal[Token.IntLit]
+  val eofTerminal = Terminal[Token.EOF]
 
+  override val eof = eofTerminal
   override val start = expr
 
   (exprList ::= expr) { List(_) }
   (exprList ::= (expr, comma, exprList)) { (exp, _, list) => exp :: list }
 
+  (expr ::= (expr, eofTerminal)) { _._1 }
   (expr ::= intLit) { _.value }
   (expr ::= (lpar, expr, rpar)) { _._2 }
   (expr ::= (expr, plus, expr)) { t => t._1 + t._3 }

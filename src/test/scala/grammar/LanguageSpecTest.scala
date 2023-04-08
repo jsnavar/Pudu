@@ -29,6 +29,7 @@ class LanguageSpecTest extends munit.FunSuite {
       val intLit = Terminal[Token.IntLit]
 
       override val start = expr
+      override val eof = Terminal[Token.EOF]
 
       // Rules
       (expr ::= intLit) {
@@ -61,6 +62,7 @@ class LanguageSpecTest extends munit.FunSuite {
       val intLit = Terminal[Token.IntLit]
 
       override val start = expr
+      override val eof = Terminal[Token.EOF]
 
       // Rules
       (expr ::= (plus, intLit)) {
@@ -93,6 +95,7 @@ class LanguageSpecTest extends munit.FunSuite {
       val intLit = Terminal[Token.IntLit]
 
       override val start = expr
+      override val eof = Terminal[Token.EOF]
 
       // Rules
       (expr ::= (expr, plus, expr)) {
@@ -124,6 +127,7 @@ class LanguageSpecTest extends munit.FunSuite {
       val intLit = Terminal[Token.IntLit]
 
       override val start = expr
+      override val eof = Terminal[Token.EOF]
 
       // Rules
       (expr ::= (minus, expr, times, expr)) {
@@ -156,6 +160,7 @@ class LanguageSpecTest extends munit.FunSuite {
       val intLit = Terminal[Token.IntLit]
 
       override val start = expr
+      override val eof = Terminal[Token.EOF]
 
       // Rules
       (expr ::= (lpar, expr, minus, expr, rpar)) {
@@ -189,6 +194,7 @@ class LanguageSpecTest extends munit.FunSuite {
       val intLit = Terminal[Token.IntLit]
 
       override val start = expr
+      override val eof = Terminal[Token.EOF]
 
       // Rules
       (expr ::= (lpar, expr, minus, expr, rpar)) {
@@ -226,6 +232,7 @@ class LanguageSpecTest extends munit.FunSuite {
       val intLit = Terminal[Token.IntLit]
 
       override val start = expr
+      override val eof = Terminal[Token.EOF]
 
       // Rules
       (expr ::= (lpar, expr, minus, expr, rpar)) {
@@ -263,6 +270,7 @@ class LanguageSpecTest extends munit.FunSuite {
       val intLit = Terminal[Token.IntLit]
 
       override val start = expr
+      override val eof = Terminal[Token.EOF]
 
       // Rules
       (expr ::= (lpar, expr, minus, expr, rpar)) {
@@ -301,6 +309,7 @@ class LanguageSpecTest extends munit.FunSuite {
       val intLit = Terminal[Token.IntLit]
 
       override val start = expr
+      override val eof = Terminal[Token.EOF]
 
       (exprList ::= expr) { List(_) }
       (exprList ::= (expr, comma, exprList)) { (exp, _, list) => exp :: list }
@@ -327,5 +336,4 @@ class LanguageSpecTest extends munit.FunSuite {
     assertEquals(SimpleArithmetic.nonTerminals, Set(SimpleArithmetic.expr, SimpleArithmetic.exprList))
     assert(SimpleArithmetic.terminals.size == 8)
   }
-
 }

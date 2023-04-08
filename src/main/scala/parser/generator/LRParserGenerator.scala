@@ -28,6 +28,12 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
   def isTerminal(symbol: Symbol) = terminals.contains(symbol)
   def isNonTerminal(symbol: Symbol) = nonTerminals.contains(symbol)
 
+  val eof = lang.eof
+
+  /* Grammar is augmented with a new start symbol, as usual */
+  val startSymbol = NonTerminal[Tree]
+  val augmentedRule: RuleT = Rule(startSymbol, Seq(lang.start, eof), _.head)
+
   /** Closure of a state. Follows the standard definition */
   def closure(state: State): State =
     stateClosure(state, rules.map(_.toItem))
@@ -51,25 +57,49 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
       .groupBy(_.after.head)
       .map((symbol, state) => (symbol, closure(state.map(_.shift))))
 
-  /** Pudu does not support null productions, so first reduces to reachability.
-   *  We compute that using a fixed point */
-  def first: Map[Symbol, Set[Symbol]] =
-    // we only need the first symbol in each rule:
-    val edges = rules.map(rule => rule.left -> rule.right.head)
-    def firstFP(current: Set[(Symbol, Symbol)]): Set[(Symbol, Symbol)] =
-      //compute the new pairs, using a for expression
-      val next = for
-        (el, er) <- edges
-        (pl, pr) <- current
-        if pl == er
-        if !current.contains((el, pr))
-      yield (el, pr)
-      if next.isEmpty then current
-      else firstFP(current ++ next)
-    val start = terminals.map(t => t -> t)
-    /* firstFP(start) contains pairs (N, T), such that terminal T belongs
-     * to first(N) */
-    firstFP(start).groupBy(_._1)
-      .map((l, r) => l -> r.map(_._2))
+  extension[K, V] (map: Map[K, Set[V]])
+    def addToValues(key: K, value: V) = map + (key -> (map.getOrElse(key, Set.empty) + value))
 
-  def follow(symbol: Symbol): Set[Symbol] = ???
+  /** Least fixed point of current, over the graph given by edges */
+  def lfp[T](edges: Set[(T, T)])(current: Set[(T, T)]): Set[(T,T)] =
+    //compute the new pairs
+    val next = for
+      (el, er) <- edges
+      (cl, cr) <- current
+      if er == cl
+      if !current.contains((el, cr))
+    yield (el, cr)
+    if next.isEmpty then current
+    else lfp(edges)(current ++ next)
+
+  type SymPair = (Symbol, Symbol)
+  /** Given a set of pairs (a,b), it returns a map:
+   *  {a -> s| s contains all elements b, such that (a,b)\in pairs} */
+  def groupPairs(pairs: Set[SymPair]) =
+    pairs.groupMapReduce(_._1)((p: SymPair) => Set(p._2))(_ ++ _)
+
+  /** Pudu does not support null productions, so FIRST reduces to reachability
+   *  in the graph given by the first symbol of each production. */
+  lazy val first: Map[Symbol, Set[Symbol]] =
+    val edges: Set[SymPair] = rules.map(rule => rule.left -> rule.right.head)
+    def firstLFP = lfp(edges)
+    /* The LFP starts from {(t,t)| t is a terminal} */
+    val start = terminals.map(t => t -> t)
+    groupPairs(firstLFP(start))
+
+  /** FOLLOW is also computed as a LFP but with reversed edges: from the last
+   *  symbol of the rhs to the left symbol. This FOLLOWs the definition,
+   *  because for each production X ::= ...Z, FOLLOW(X)\subseteq FOLLOW(Z) */
+  lazy val follow: Map[Symbol, Set[Symbol]] =
+    val edges: Set[SymPair] = rules.map(rule => rule.right.last -> rule.left)
+    def followLFP = lfp(edges)
+    /* the starting set is
+     * { (N, T): there exists a production U ::= ...Nz..., and T\in FIRST(z) } */
+    val start = for
+      rule <- rules
+      if rule.right.size >= 2
+      pair <- rule.right.sliding(2)
+      if isNonTerminal(pair(0))
+      elem <- first(pair(1))
+    yield (pair(0), elem)
+    groupPairs(followLFP(start))

@@ -25,6 +25,7 @@ abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum]:
   lazy val terminals = rules.flatMap(_.right).diff(nonTerminals)
 
   val start: Symbol
+  val eof: Symbol
   val precedence: Precedence = Precedence.empty
 
   /** Rule definition methods. Given a NonTerminal left, a rule can be defined as
