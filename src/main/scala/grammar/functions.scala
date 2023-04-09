@@ -24,6 +24,23 @@ inline def seq[ST, S, R](inline numPars: Int, inline depth: Int, inline fn: S =>
         case nextFn: Function1[_,_] =>
           seq(numPars, depth+1, nextFn)(args).asInstanceOf[ST]
 
+/** Gets the ordinal value of an enum case from it's type.
+ *  This macro abuses the implementation of Enums, using that
+ *  when cases are parametrized, 'ordinal' is implemented as
+ *  def ordinal = IntConstant //Actually a Literal, with an IntConstant */
+import scala.quoted.*
+inline def enumOrdinal[T] = ${ enumOrdinalImpl[T] }
+
+def enumOrdinalImpl[T: Type](using Quotes) =
+  import quotes.reflect.*
+  val ts = TypeRepr.of[T].typeSymbol
+  val ordinalSymbol = ts.methodMember("ordinal").head
+  // this requires the scalac option -Yretain-trees
+  val rhs = ordinalSymbol.tree.asInstanceOf[DefDef].rhs
+  rhs match
+    case None => throw Exception("Tree not found. Please compile with option -Yretain-trees")
+    case Some(x) => x.asExprOf[Int]
+
 inline def untupled[T1, T2, R] = Function.untupled[T1, T2, R]
 inline def untupled[T1, T2, T3, R] = Function.untupled[T1, T2, T3, R]
 inline def untupled[T1, T2, T3, T4, R] = Function.untupled[T1, T2, T3, T4, R]

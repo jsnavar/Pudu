@@ -13,26 +13,25 @@ extension[T,ST] (rule: Rule[T,ST])
   def toItem: Item[T,ST] = Item(rule.left, Seq.empty[Symbol], rule.right, rule)
 
 abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[Tree,Token]) extends ParserGenerator[Tree, Token]:
-  type RuleT = Rule[Tree, Tree|Token]
-  type ItemT = Item[Tree, Tree|Token]
+  type RuleT = Rule[Tree, Tree | Token]
+  type ItemT = Item[Tree, Tree | Token]
   /** A state is just a set of Items. This may be changed in the future */
   type State = Set[ItemT]
 
-  val rules = lang.rules
+  /* Grammar is augmented with a new start symbol, as usual */
+  val startSymbol = NonTerminal[Tree]
+  val eof = lang.eof
+  val augmentedRule: RuleT = Rule(startSymbol, Seq(lang.start, eof), _.head)
+
+  val rules = lang.rules + augmentedRule
   val precedence = lang.precedence
 
-  val terminals = lang.terminals
-  val nonTerminals = lang.nonTerminals
+  val terminals = lang.terminals + eof
+  val nonTerminals = lang.nonTerminals + startSymbol
   val symbols = terminals ++ nonTerminals
 
   def isTerminal(symbol: Symbol) = terminals.contains(symbol)
   def isNonTerminal(symbol: Symbol) = nonTerminals.contains(symbol)
-
-  val eof = lang.eof
-
-  /* Grammar is augmented with a new start symbol, as usual */
-  val startSymbol = NonTerminal[Tree]
-  val augmentedRule: RuleT = Rule(startSymbol, Seq(lang.start, eof), _.head)
 
   /** Closure of a state. Follows the standard definition */
   def closure(state: State): State =
