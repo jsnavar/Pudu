@@ -11,7 +11,7 @@ package pudu.grammar
 abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum]:
   /* As [[pudu.grammar.Symbol]] is not parametrized, and could have subclasses different from
    * Terminal and NonTerminal, we define the union type Sym to mean the union of NonTerminal[Tree]
-   * and Terminal[Token]. This usually is very big (Any?), but it adds some safety (sometimes) */
+   * and Terminal[Token]. This is usually very big (Any?), but it adds some safety (sometimes) */
   type Par = Tree | Token
   type Sym[T <: Par] = NonTerminal[T] | Terminal[T]
 
@@ -31,6 +31,7 @@ abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum]:
   /** Rule definition methods. Given a NonTerminal left, a rule can be defined as
     {{{    (left ::= (r1, r2, r3)) { (v1, v2 v3) => ... }      }}}
     * where the types of v1, v2, and v3 are inferred from 'r1', 'r2', and 'r3' */
+  /* TODO: create these methods using reflection (Symbol.newMethod, DefDef, etc) */
   extension [R <: Tree] (left: NonTerminal[R])
     protected inline def ::= [T1 <: Par] (inline right: Sym[T1])(inline fn: T1 => R): Unit =
       rulesSet += Rule[Tree, Par](left, Seq(right), seq(1, fn))

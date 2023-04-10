@@ -27,7 +27,7 @@ inline def seq[ST, S, R](inline numPars: Int, inline depth: Int, inline fn: S =>
 /** Gets the ordinal value of an enum case from it's type.
  *  This macro abuses the implementation of Enums, using that
  *  when cases are parametrized, 'ordinal' is implemented as
- *  def ordinal = IntConstant //Actually a Literal, with an IntConstant */
+ *  def ordinal = IntConstant //Actually a Literal with an IntConstant */
 import scala.quoted.*
 inline def enumOrdinal[T] = ${ enumOrdinalImpl[T] }
 

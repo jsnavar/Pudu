@@ -12,6 +12,7 @@ case class Item[T,ST](left: NonTerminal[T], before: Seq[Symbol], after: Seq[Symb
 extension[T,ST] (rule: Rule[T,ST])
   def toItem: Item[T,ST] = Item(rule.left, Seq.empty[Symbol], rule.right, rule)
 
+/** Base class for LR parser generators (SLR, LR(1), LALR) */
 abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[Tree,Token]) extends ParserGenerator[Tree, Token]:
   type RuleT = Rule[Tree, Tree | Token]
   type ItemT = Item[Tree, Tree | Token]
