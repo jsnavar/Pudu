@@ -18,4 +18,16 @@ class FunctionsTest extends munit.FunSuite {
     val args : Seq[Int|String] = Seq(2, "str: ", 3, ".")
     assertEquals(sf(args), "str: 23.")
   }
+
+  test("enumOrdinal") {
+    enum TestEnum:
+      case First(x: Int, y: String)
+      case Second()
+      case Third(x: List[Int])
+
+    assertEquals(enumOrdinal[TestEnum.First], 0)
+    assertEquals(enumOrdinal[TestEnum.Second], 1)
+    assertEquals(enumOrdinal[TestEnum.Third], 2)
+  }
+
 }
