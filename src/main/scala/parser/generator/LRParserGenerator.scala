@@ -22,7 +22,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
   /* Grammar is augmented with a new start symbol, as usual */
   val startSymbol = NonTerminal[Tree]
   val eof = lang.eof
-  val augmentedRule: RuleT = Rule(startSymbol, Seq(lang.start, eof), _.head)
+  val augmentedRule: RuleT = Rule(startSymbol, Seq(lang.start), _.head)
 
   val rules = lang.rules + augmentedRule
   val precedence = lang.precedence
@@ -52,10 +52,20 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
 
   /** computes the goto of every relevant symbol in 'state', returning a map such that
    *  goto(state)(symbol) := goto(state, symbol) */
-  def goto(state: State): Map[Symbol, State] =
+  def goto(state: State): Map[(State, Symbol), State] =
     state.filterNot(_.after.isEmpty)
       .groupBy(_.after.head)
-      .map((symbol, state) => (symbol, closure(state.map(_.shift))))
+      .map((symbol, gotoState) => ((state, symbol), closure(gotoState.map(_.shift))))
+
+  lazy val lr0Automaton: Map[(State, Symbol), State] =
+    def computeAutomaton(current: Map[(State, Symbol), State], computed: Set[State], frontier: Set[State]): Map[(State, Symbol), State] =
+      val newEdges = frontier.flatMap(goto)
+      val newStates = newEdges.map(_._2) -- computed
+      if newStates.isEmpty then current ++ newEdges
+      else
+        computeAutomaton(current ++ newEdges, computed ++ frontier, newStates)
+    val startState = closure(Set(augmentedRule.toItem))
+    computeAutomaton(Map.empty, Set.empty, Set(closure(startState)))
 
   extension[K, V] (map: Map[K, Set[V]])
     def addToValues(key: K, value: V) = map + (key -> (map.getOrElse(key, Set.empty) + value))

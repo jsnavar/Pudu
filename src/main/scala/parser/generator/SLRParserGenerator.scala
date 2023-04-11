@@ -4,5 +4,4 @@ import pudu.grammar._
 import pudu.parser._
 
 class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[Tree,Token]) extends LRParserGenerator(lang):
-
-  def apply: Iterator[Token] => Tree = ???
+  def parser: Iterator[Token] => Tree = ???

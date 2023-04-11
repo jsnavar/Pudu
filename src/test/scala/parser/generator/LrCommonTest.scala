@@ -4,7 +4,7 @@ import pudu.parser.generator._
 class LrCommonTest extends munit.FunSuite {
   import SimpleArithmetic._
   object TestLR extends LRParserGenerator(SimpleArithmetic):
-      def apply: Iterator[Token] => Int = ???
+      def parser: Iterator[Token] => Int = ???
 
   def select(f: TestLR.RuleT => Boolean): TestLR.State =
     rules.filter(f).map(_.toItem)
@@ -37,6 +37,15 @@ class LrCommonTest extends munit.FunSuite {
     val item = filtered.head
     assertEquals(item.before, Seq(expr, comma))
     assertEquals(item.after, Seq(exprList))
+  }
+
+  test("State equality") {
+    val state1 = select(_.left == exprList)
+      .map(_.shift)
+    val state2 = select(_.left == exprList)
+      .map(_.shift)
+
+    assertEquals(state1, state2)
   }
 
   test("Closure 1") {
@@ -86,12 +95,25 @@ class LrCommonTest extends munit.FunSuite {
 
     val gotoAll = TestLR.goto(state)
     assertEquals(gotoAll.size, 3)
-    assertEquals(gotoAll.keys.toSet, Set(plus, minus, times))
+    assertEquals(gotoAll.keys.toSet, Set((state, plus), (state, minus), (state, times)))
 
-    assertEquals(gotoAll(plus).toSet, TestLR.goto(state, plus))
-    assertEquals(gotoAll(minus).toSet, TestLR.goto(state, minus))
-    assertEquals(gotoAll(times).toSet, TestLR.goto(state, times))
+    assertEquals(gotoAll(state, plus).toSet, TestLR.goto(state, plus))
+    assertEquals(gotoAll(state, minus).toSet, TestLR.goto(state, minus))
+    assertEquals(gotoAll(state, times).toSet, TestLR.goto(state, times))
   }
+  test("lr0Automaton") {
+    val automaton = TestLR.lr0Automaton
+    val startState = TestLR.closure(Set(TestLR.augmentedRule.toItem))
+
+    val toExpr = TestLR.goto(startState, expr)
+    assertEquals(automaton(startState, expr), toExpr)
+
+    val toFuncId = TestLR.goto(startState, funcId)
+    assertEquals(automaton(startState, funcId), toFuncId)
+    val toLPar = TestLR.goto(toFuncId, lpar)
+    assertEquals(automaton(toFuncId, lpar), toLPar)
+  }
+
   test("first") {
     val first = TestLR.first
     assertEquals(first(expr), Set(intLit, funcId, lpar))
@@ -101,7 +123,7 @@ class LrCommonTest extends munit.FunSuite {
 
   test("follow") {
     val follow = TestLR.follow
-    assertEquals(follow(expr), Set(rpar, plus, times, minus, comma, eof))
+    assertEquals(follow(expr), Set(rpar, plus, times, minus, comma))
     assertEquals(Set(rpar), follow(exprList))
   }
 }
