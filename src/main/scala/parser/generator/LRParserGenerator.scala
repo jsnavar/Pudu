@@ -21,7 +21,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
 
   /* Grammar is augmented with a new start symbol, as usual */
   val startSymbol = NonTerminal[Tree]
-  val eof = lang.eof
+  val eof: Terminal[Token] = lang.eof
   val augmentedRule: RuleT = Rule(startSymbol, Seq(lang.start), _.head)
 
   val rules = lang.rules + augmentedRule
@@ -113,3 +113,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
       elem <- first(pair(1))
     yield (pair(0), elem)
     groupPairs(followLFP(start))
+
+
+  def lrParse(action: Map[(Int, Int), SRAction], goto: Map[(Int, Symbol), Int])(input: Iterator[Token]): Tree =
+    ???
