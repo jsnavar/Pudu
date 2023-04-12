@@ -13,8 +13,13 @@ class SymbolTest extends munit.FunSuite {
     assertEquals(terminal2.ordinal, 2)
   }
 
-  test("toString") {
+  test("terminal toString") {
     val terminal = Terminal[TestEnum.Second]
     assertEquals(terminal.toString, "Terminal(1)")
+  }
+
+  test("non terminal toString") {
+    val nt = NonTerminal[Int] ("someTag")
+    assertEquals(nt.toString, "someTag")
   }
 }

@@ -8,3 +8,6 @@ case class Rule[Tree, ST](left: NonTerminal[Tree], right: Seq[Symbol], action: S
     val (top, bot) = stack.splitAt(arity)
     val result = action(top)
     result +: bot
+
+  override def toString =
+    s"$left ::= ${right.mkString(" ")}"

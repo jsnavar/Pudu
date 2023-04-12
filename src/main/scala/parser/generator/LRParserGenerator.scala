@@ -8,6 +8,9 @@ import pudu.parser._
 case class Item[T,ST](left: NonTerminal[T], before: Seq[Symbol], after: Seq[Symbol], rule: Rule[T,ST]):
   /** shifts the dot one place to the right. Caller must ensure that 'after' is not empty before calling */
   def shift = Item(left, before :+ after.head, after.tail, rule)
+  override def toString =
+    def sp[T](seq: Seq[T]) = seq.mkString(" ")
+    s"$left ::= ${sp(before)} · ${sp(after)}"
 
 extension[T,ST] (rule: Rule[T,ST])
   def toItem: Item[T,ST] = Item(rule.left, Seq.empty[Symbol], rule.right, rule)
@@ -123,7 +126,8 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
         action.getOrElse((states.head, nextToken.ordinal), Error) match
           case Shift(to) =>
             parsingImpl(to +: states, nextToken +: stack)
-          case Reduce[Tree, Tree|Token](rule) =>
+          case Reduce(ruleAny) =>
+            val rule = ruleAny.asInstanceOf[RuleT]
             val to = goto(states.head, rule.left)
             val updatedStates = to +: states.drop(rule.arity)
             parsingImpl(updatedStates, rule.reduce(stack))
