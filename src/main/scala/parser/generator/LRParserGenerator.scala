@@ -114,6 +114,21 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     yield (pair(0), elem)
     groupPairs(followLFP(start))
 
-
-  def lrParse(action: Map[(Int, Int), SRAction], goto: Map[(Int, Symbol), Int])(input: Iterator[Token]): Tree =
-    ???
+  def lrParse(action: Map[(Int, Int), SRAction], goto: Map[(Int, Symbol), Int])(input: Iterator[Token]): Either[ErrorMsg, Tree] =
+    def parsingImpl(states: Seq[Int], stack: Seq[Tree|Token]): Either[ErrorMsg, Tree] =
+      if !input.hasNext then
+        Left(ErrorMsg("Input ended unexpectedly"))
+      else
+        val nextToken = input.next
+        action.getOrElse((states.head, nextToken.ordinal), Error) match
+          case Shift(to) =>
+            parsingImpl(to +: states, nextToken +: stack)
+          case Reduce[Tree, Tree|Token](rule) =>
+            val to = goto(states.head, rule.left)
+            val updatedStates = to +: states.drop(rule.arity)
+            parsingImpl(updatedStates, rule.reduce(stack))
+          case Accept =>
+            Right(stack.head.asInstanceOf[Tree])
+          case Error =>
+            Left(ErrorMsg("Syntax error"))
+    parsingImpl(Seq(0), Seq.empty)

@@ -4,7 +4,7 @@ import pudu.parser.generator._
 class LrCommonTest extends munit.FunSuite {
   import SimpleArithmetic._
   object TestLR extends LRParserGenerator(SimpleArithmetic):
-      def parser: Iterator[Token] => Int = ???
+      def parser = ???
 
   def select(f: TestLR.RuleT => Boolean): TestLR.State =
     rules.filter(f).map(_.toItem)
