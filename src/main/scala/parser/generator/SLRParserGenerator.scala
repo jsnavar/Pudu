@@ -13,22 +13,36 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
   // ((stateIndex, tokenOrdinal), Action)
   type ActionTableEntry = ((Int, Int), SRAction)
 
-  def shiftReduceResolution(rule: RuleT, terminal: Terminal[Any]): SRAction = ???
-
+  /** builds the action table key */
   def actionTableKey(from: State, terminal: Terminal[Any]) =
     val fromIdx = indexedStates(from)
     val terminalOrdinal = terminal.ordinal
     (fromIdx, terminalOrdinal)
 
+  /** Action table entry for shift actions */
   def shiftTo(from: State, terminal: Terminal[Any], to: State): ActionTableEntry =
     val key = actionTableKey(from, terminal)
     val toIdx = indexedStates(to)
     (key, Shift(toIdx))
 
+  /** Action table entry for reduce actions */
   def reduceBy(from: State, terminal: Terminal[Any], rule: RuleT): ActionTableEntry =
     val key = actionTableKey(from, terminal)
     (key, Reduce(rule))
 
+  /** uses precedence to solve shift reduce conflicts. Default is to shift, in
+   *  accordance to tradition (https://www.gnu.org/software/bison/manual/html_node/How-Precedence.html) */
+  def shiftReduceResolution(from: State, to: State)(rule: RuleT, terminal: Terminal[Any]): ActionTableEntry =
+    val lastTerminalOfRule = rule.right.findLast(isTerminal)
+    if !lastTerminalOfRule.isDefined then
+      // shift by default
+      shiftTo(from, terminal, to)
+    else precedence.max(lastTerminalOfRule.get, terminal) match
+      case Side.Left => reduceBy(from, terminal, rule)
+      case Side.Right => shiftTo(from, terminal, to)
+      case Side.Neither => shiftTo(from, terminal, to) // shift by default
+
+  /** Decides the action for an automaton edge */
   def edgeAction(from: (State, Terminal[Any]), to: State): ActionTableEntry =
     val (state, terminal) = from
     // if [A -> \alpha\cdot] is in state, and terminal is in Follow(A), then
@@ -41,7 +55,7 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
     // shift to 'to'
     val shift = state.find(_.after.head == terminal).isDefined
     if shift && reduceItems.size != 0 then
-      throw ShiftReduceConflictException()
+      shiftReduceResolution(state, to)(reduceItems.head.rule, terminal)
     else if shift then shiftTo(state, terminal, to)
     else reduceBy(state, terminal, reduceItems.head.rule)
 
