@@ -22,8 +22,8 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
   /** A state is just a set of Items. This may be changed in the future */
   type State = Set[ItemT]
 
-  /* Grammar is augmented with a new start symbol, as usual */
-  val startSymbol = NonTerminal[Tree]
+  /* Grammar is augmented with a new start symbol */
+  val startSymbol = NonTerminal[Tree]("S'")
   val eof: Terminal[Token] = lang.eof
   val augmentedRule: RuleT = Rule(startSymbol, Seq(lang.start), _.head)
 
@@ -114,12 +114,12 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
       if isNonTerminal(pair(0))
       elem <- first(pair(1))
     yield (pair(0), elem)
-    val startPairs = start + (startSymbol -> eof)
+    val startPairs = start + (startSymbol -> eof) // S' -> $ is in follow by definition
     groupPairs(lfp(edges, startPairs))
 
+  /** LR parsing algorithm */
   def lrParse(action: Map[(Int, Int), SRAction], goto: Map[(Int, Symbol), Int])(input: Iterator[Token]): Either[ErrorMsg, Tree] =
     def parsingImpl(token: Token, states: Seq[Int], stack: Seq[Tree|Token]): Either[ErrorMsg, Tree] =
-      //val nextToken = input.next
       action.getOrElse((states.head, token.ordinal), Error) match
         case Shift(to) =>
           if !input.hasNext then

@@ -52,19 +52,15 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
     states.flatMap { state =>
       val stateResult = state.filter(_.after.isEmpty).flatMap(itemReduceActions(state,_))
         .groupMap(t => (t._1, t._2))(_._3)
-      stateResult.find(_._2.size != 1) match
-        case Some(_) => throw ReduceReduceConflictException()
-        case None => stateResult
+      if stateResult.find(_._2.size != 1).isDefined then
+        throw ReduceReduceConflictException()
+      else
+        stateResult
     }.toMap.map((k,v) => k -> v.head)
 
   /** Decides the action for an automaton edge */
   def edgeAction(from: (State, Terminal[Token]), to: State): ActionTableEntry =
     val (state, terminal) = from
-    /*
-    val reduceItems = state.filter((item: ItemT) => item.after.isEmpty
-                                && item.left != startSymbol
-                                && follow(item.left).contains(terminal))
-    if reduceItems.size > 1 then throw ReduceReduceConflictException() */
     val reduce = reduceActions.contains(state, terminal)
     // if [A -> \alpha\cdot a\beta] is in state, and a = terminal, then
     // shift to 'to'
