@@ -14,15 +14,15 @@ package pudu.grammar
    case _ => X
  }}}
  */
-inline def seq[ST, S, R](inline numPars: Int, inline fn: S => R): Seq[ST] => ST = seq(numPars, 0, fn)
+inline def seq[ST, S, R](inline numPars: Int, inline fn: S => R): Seq[ST] => ST = seq(numPars, numPars-1, fn)
 inline def seq[ST, S, R](inline numPars: Int, inline depth: Int, inline fn: S => R): Seq[ST] => ST =
   (args: Seq[Any]) =>
-    inline if depth == numPars - 1 then
+    inline if depth == 0 then
       fn(args(depth).asInstanceOf[S]).asInstanceOf[ST]
     else
       inline fn(args(depth).asInstanceOf[S]) match
         case nextFn: Function1[_,_] =>
-          seq(numPars, depth+1, nextFn)(args).asInstanceOf[ST]
+          seq(numPars, depth-1, nextFn)(args).asInstanceOf[ST]
 
 /** Gets the ordinal value of an enum case from it's type.
  *  This macro abuses the implementation of Enums, using that

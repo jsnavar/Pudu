@@ -1,11 +1,11 @@
 import pudu.grammar._
 
 enum Token:
-  case LPar()
-  case RPar()
-  case Plus()
-  case Times()
-  case Minus()
+  case LPar() //0
+  case RPar() //1
+  case Plus() //2
+  case Times()  //3
+  case Minus()  //4
   case Comma()
   case FuncId(id: String)
   case IntLit(value: Int)
@@ -13,8 +13,8 @@ enum Token:
 
 object SimpleArithmetic extends LanguageSpec[Int|List[Int], Token]:
   // Symbol objects
-  val expr = NonTerminal[Int]
-  val exprList = NonTerminal[List[Int]]
+  val expr = NonTerminal[Int]("Expr")
+  val exprList = NonTerminal[List[Int]]("ExprList")
 
   val lpar   = Terminal[Token.LPar]
   val rpar   = Terminal[Token.RPar]
@@ -28,6 +28,7 @@ object SimpleArithmetic extends LanguageSpec[Int|List[Int], Token]:
 
   override val eof = eofTerminal
   override val start = expr
+  override val precedence = Precedence().left(plus, minus).left(times)
 
   (exprList ::= expr) { List(_) }
   (exprList ::= (expr, comma, exprList)) { (exp, _, list) => exp :: list }

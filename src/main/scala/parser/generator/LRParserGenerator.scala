@@ -74,7 +74,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     def addToValues(key: K, value: V) = map + (key -> (map.getOrElse(key, Set.empty) + value))
 
   /** Least fixed point of current, over the graph given by edges */
-  def lfp[T](edges: Set[(T, T)])(current: Set[(T, T)]): Set[(T,T)] =
+  def lfp[L, R](edges: Set[(L, L)], current: Set[(L, R)]): Set[(L,R)] =
     //compute the new pairs
     val next = for
       (el, er) <- edges
@@ -83,29 +83,28 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
       if !current.contains((el, cr))
     yield (el, cr)
     if next.isEmpty then current
-    else lfp(edges)(current ++ next)
+    else lfp(edges, current ++ next)
 
   type SymPair = (Symbol, Symbol)
   /** Given a set of pairs (a,b), it returns a map:
    *  {a -> s| s contains all elements b, such that (a,b)\in pairs} */
-  def groupPairs(pairs: Set[SymPair]) =
-    pairs.groupMapReduce(_._1)((p: SymPair) => Set(p._2))(_ ++ _)
+  def groupPairs[L, R](pairs: Set[(L,R)]) =
+    pairs.groupMapReduce(_._1)((p: (L,R)) => Set(p._2))(_ ++ _)
 
   /** Pudu does not support null productions, so FIRST reduces to reachability
    *  in the graph given by the first symbol of each production. */
-  lazy val first: Map[Symbol, Set[Symbol]] =
+  lazy val first: Map[Symbol, Set[Terminal[Token]]] =
     val edges: Set[SymPair] = rules.map(rule => rule.left -> rule.right.head)
-    def firstLFP = lfp(edges)
     /* The LFP starts from {(t,t)| t is a terminal} */
-    val start = terminals.map(t => t -> t)
-    groupPairs(firstLFP(start))
+    val start = terminals.map(t => t -> t.asInstanceOf[Terminal[Token]])
+    groupPairs(lfp(edges, start))
 
   /** FOLLOW is also computed as a LFP but with reversed edges: from the last
    *  symbol of the rhs to the left symbol. This FOLLOWs the definition,
    *  because for each production X ::= ...Z, FOLLOW(X)\subseteq FOLLOW(Z) */
-  lazy val follow: Map[Symbol, Set[Symbol]] =
-    val edges: Set[SymPair] = rules.map(rule => rule.right.last -> rule.left)
-    def followLFP = lfp(edges)
+  lazy val follow: Map[Symbol, Set[Terminal[Token]]] =
+    val edges: Set[SymPair] = rules.filter(rule => isNonTerminal(rule.right.last))
+      .map(rule => rule.right.last -> rule.left)
     /* the starting set is
      * { (N, T): there exists a production U ::= ...Nz..., and T\in FIRST(z) } */
     val start = for
@@ -115,24 +114,28 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
       if isNonTerminal(pair(0))
       elem <- first(pair(1))
     yield (pair(0), elem)
-    groupPairs(followLFP(start))
+    val startPairs = start + (startSymbol -> eof)
+    groupPairs(lfp(edges, startPairs))
 
   def lrParse(action: Map[(Int, Int), SRAction], goto: Map[(Int, Symbol), Int])(input: Iterator[Token]): Either[ErrorMsg, Tree] =
-    def parsingImpl(states: Seq[Int], stack: Seq[Tree|Token]): Either[ErrorMsg, Tree] =
-      if !input.hasNext then
-        Left(ErrorMsg("Input ended unexpectedly"))
-      else
-        val nextToken = input.next
-        action.getOrElse((states.head, nextToken.ordinal), Error) match
-          case Shift(to) =>
-            parsingImpl(to +: states, nextToken +: stack)
-          case Reduce(ruleAny) =>
-            val rule = ruleAny.asInstanceOf[RuleT]
-            val to = goto(states.head, rule.left)
-            val updatedStates = to +: states.drop(rule.arity)
-            parsingImpl(updatedStates, rule.reduce(stack))
-          case Accept =>
-            Right(stack.head.asInstanceOf[Tree])
-          case Error =>
-            Left(ErrorMsg("Syntax error"))
-    parsingImpl(Seq(0), Seq.empty)
+    def parsingImpl(token: Token, states: Seq[Int], stack: Seq[Tree|Token]): Either[ErrorMsg, Tree] =
+      //val nextToken = input.next
+      action.getOrElse((states.head, token.ordinal), Error) match
+        case Shift(to) =>
+          if !input.hasNext then
+            Left(ErrorMsg("Input ended unexpectedly"))
+          else
+            parsingImpl(input.next, to +: states, token +: stack)
+        case Reduce(ruleAny) =>
+          val rule = ruleAny.asInstanceOf[RuleT]
+          val updatedStates = states.drop(rule.arity)
+          val to = goto(updatedStates.head, rule.left)
+          parsingImpl(token, to +: updatedStates, rule.reduce(stack))
+        case Accept =>
+          Right(stack.head.asInstanceOf[Tree])
+        case Error =>
+          Left(ErrorMsg(s"Syntax error: $stack, $states, $token"))
+    if input.hasNext then
+      parsingImpl(input.next, Seq(0), Seq.empty)
+    else
+      Left(ErrorMsg("Empty input!"))

@@ -36,7 +36,7 @@ class PrecedenceTest extends munit.FunSuite {
 
     assertEquals(left.max(plus, minus), Side.Left)
     assertEquals(right.max(plus, minus), Side.Right)
-    assertEquals(nonassoc.max(plus, minus), Side.Neither)
+    assertEquals(nonassoc.max(plus, minus), Side.Error)
   }
   test("different level") {
     val p = Precedence().nonassoc(plus, minus).nonassoc(comma).right(times)

@@ -123,7 +123,7 @@ class LrCommonTest extends munit.FunSuite {
 
   test("follow") {
     val follow = TestLR.follow
-    assertEquals(follow(expr), Set(rpar, plus, times, minus, comma))
+    assertEquals(follow(expr), Set(rpar, plus, times, minus, comma, eof))
     assertEquals(Set(rpar), follow(exprList))
   }
 }

@@ -9,6 +9,7 @@ enum Side:
   case Left
   case Right
   case Neither
+  case Error
 
 /** Operator precedence class.
  *  nth entry in levels represents the associativity of the nth precedence level,
@@ -34,7 +35,7 @@ class Precedence(levels: Seq[Assoc], val symPrec: Map[Symbol, Int]):
       if leftPrec == rightPrec then levels(leftPrec) match
         case Assoc.Left => Side.Left
         case Assoc.Right => Side.Right
-        case Assoc.NonAssoc => Side.Neither
+        case Assoc.NonAssoc => Side.Error
       else if leftPrec > rightPrec then Side.Left
       else Side.Right
 

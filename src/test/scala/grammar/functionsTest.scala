@@ -15,7 +15,7 @@ class FunctionsTest extends munit.FunSuite {
     def f(x1: Int, x2: String, x3: Int, x4: String) =
       x2 + x1 + x3 + x4
     val sf: Seq[Int|String] => Int|String = seq(4, f.curried)
-    val args : Seq[Int|String] = Seq(2, "str: ", 3, ".")
+    val args : Seq[Int|String] = Seq(".", 3, "str: ", 2)
     assertEquals(sf(args), "str: 23.")
   }
 
