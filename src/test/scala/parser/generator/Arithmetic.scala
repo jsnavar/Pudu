@@ -1,4 +1,5 @@
 import pudu.grammar._
+import pudu.lexer._
 
 enum Token:
   case LPar() //0
@@ -48,3 +49,18 @@ object SimpleArithmetic extends LanguageSpec[Int|List[Int], Token]:
       case "sum" => args.sum
       case _ => 0
   }
+
+object ArithmeticLexer extends Lexer[Token]:
+  "\\(" { Token.LPar() }
+  "\\)" { Token.RPar() }
+  "\\+" { Token.Plus() }
+  "\\*" { Token.Times() }
+  "\\-" { Token.Minus() }
+  "\\," { Token.Comma() }
+  "[a-z]+[a-z0-9]*" { Token.FuncId(_) }
+  "[0-9]+" { s => Token.IntLit(s.toInt) }
+
+  "[ \n\t]+".ignore
+
+  override val eof = Token.EOF()
+
