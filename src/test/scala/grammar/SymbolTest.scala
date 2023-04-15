@@ -15,7 +15,7 @@ class SymbolTest extends munit.FunSuite {
 
   test("terminal toString") {
     val terminal = Terminal[TestEnum.Second]
-    assertEquals(terminal.toString, "Terminal(1)")
+    assertEquals(terminal.toString, "Second")
   }
 
   test("non terminal toString") {

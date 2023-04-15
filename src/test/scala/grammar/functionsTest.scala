@@ -19,15 +19,15 @@ class FunctionsTest extends munit.FunSuite {
     assertEquals(sf(args), "str: 23.")
   }
 
-  test("enumOrdinal") {
+  test("enumMetadata") {
     enum TestEnum:
       case First(x: Int, y: String)
       case Second()
       case Third(x: List[Int])
 
-    assertEquals(enumOrdinal[TestEnum.First], 0)
-    assertEquals(enumOrdinal[TestEnum.Second], 1)
-    assertEquals(enumOrdinal[TestEnum.Third], 2)
+    assertEquals(enumMetadata[TestEnum.First], (0, "First"))
+    assertEquals(enumMetadata[TestEnum.Second], (1, "Second"))
+    assertEquals(enumMetadata[TestEnum.Third], (2, "Third"))
   }
 
 }

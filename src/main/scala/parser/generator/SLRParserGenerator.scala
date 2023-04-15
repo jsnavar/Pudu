@@ -41,7 +41,7 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
       case Side.Left => reduceBy(from, terminal, rule)
       case Side.Right => shiftTo(from, terminal, to)
       case Side.Neither => shiftTo(from, terminal, to) // shift by default
-      case Side.Error => throw ShiftReduceConflictException()
+      case Side.Error => throw ShiftReduceConflictException(rule, terminal)
 
   /** if [A -> \alpha\cdot] is in state, and terminal is in Follow(A), then
     * reduce by the rule A -> \alpha */
@@ -53,7 +53,7 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
       val stateResult = state.filter(_.after.isEmpty).flatMap(itemReduceActions(state,_))
         .groupMap(t => (t._1, t._2))(_._3)
       if stateResult.find(_._2.size != 1).isDefined then
-        throw ReduceReduceConflictException()
+        throw ReduceReduceConflictException(stateResult.map(_._2))
       else
         stateResult
     }.toMap.map((k,v) => k -> v.head)

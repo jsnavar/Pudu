@@ -1,5 +1,5 @@
 
-@main def pudu: Unit =
+@main def main: Unit =
   /* https://www.asciiart.eu/animals/deer */
   val pudu = """
          /',  _
