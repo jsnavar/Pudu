@@ -63,4 +63,3 @@ object ArithmeticLexer extends Lexer[Token]:
   "[ \n\t]+".ignore
 
   override val eof = Token.EOF()
-

@@ -1,6 +1,6 @@
 val scala3Version = "3.2.2"
 
-scalacOptions += "-Yretain-trees"
+scalacOptions ++= Seq("-Yretain-trees")
 
 lazy val root = project
   .in(file("."))

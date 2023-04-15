@@ -4,7 +4,7 @@ import scala.util.matching._
 
 /** Simple lexer based on [[scala.util.matching.Regex]] */
 abstract class Lexer[Token <: reflect.Enum]:
-  /* Regular expressions can generate a Token, or be ignored (whitespace, comments, ...).
+  /* Regular expressions can generate a Token or be ignored (whitespace, comments, ...).
    * This is represented with two case classes: TokenCase and IgnoreCase. */
   sealed trait LexerCase:
     def regex: Regex

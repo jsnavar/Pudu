@@ -1,5 +1,18 @@
-@main def hello: Unit = 
-  println("Hello world!")
-  println(msg)
 
-def msg = "I was compiled by Scala 3. :)"
+@main def pudu: Unit =
+  /* https://www.asciiart.eu/animals/deer */
+  val pudu = """
+         /',  _
+       _(  ;-'.'
+  _,-'~     '".
+'"          ~. .
+        _.      '. 
+    _.-'  ~'--.   ) 
+  '~           ~--'=._
+               /)_.-.
+           _.-' ' <~
+        .-"    _ ~ \
+            .-' '-._)
+          .'                     PjP"""
+
+  println(pudu)
