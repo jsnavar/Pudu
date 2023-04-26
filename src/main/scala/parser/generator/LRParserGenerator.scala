@@ -120,13 +120,21 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
 
   /** LR parsing algorithm */
   def lrParse(action: Map[(Int, Int), SRAction], goto: Map[(Int, Symbol), Int])(input: Iterator[Token]): Either[ErrorMsg, Tree] =
+    def nextToken(): Either[ErrorMsg, Token] =
+      if !input.hasNext then
+        Left(ErrorMsg("Input ended unexpectedly"))
+      else
+        val tok = input.next
+        if tok.ordinal == error.ordinal then
+          Left(ErrorMsg("Lexical error"))
+        else
+          Right(tok)
     def parsingImpl(token: Token, states: Seq[Int], stack: Seq[Tree|Token]): Either[ErrorMsg, Tree] =
       action.getOrElse((states.head, token.ordinal), Error) match
         case Shift(to) =>
-          if !input.hasNext then
-            Left(ErrorMsg("Input ended unexpectedly"))
-          else
-            parsingImpl(input.next, to +: states, token +: stack)
+          nextToken().flatMap {
+            parsingImpl(_, to +: states, token +: stack)
+          }
         case Reduce(ruleAny) =>
           val rule = ruleAny.asInstanceOf[RuleT]
           val updatedStates = states.drop(rule.arity)
@@ -136,7 +144,6 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
           Right(stack.head.asInstanceOf[Tree])
         case Error =>
           Left(ErrorMsg(s"Syntax error: $stack, $states, $token"))
-    if input.hasNext then
-      parsingImpl(input.next, Seq(0), Seq.empty)
-    else
-      Left(ErrorMsg("Empty input!"))
+    nextToken().flatMap {
+      parsingImpl(_, Seq(0), Seq.empty)
+    }
