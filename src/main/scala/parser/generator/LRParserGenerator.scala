@@ -69,7 +69,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
       else
         computeAutomaton(current ++ newEdges, computed ++ frontier, newStates)
     val startState = closure(Set(augmentedRule.toItem))
-    computeAutomaton(Map.empty, Set.empty, Set(closure(startState)))
+    computeAutomaton(Map.empty, Set.empty, Set(startState))
 
   extension[K, V] (map: Map[K, Set[V]])
     def addToValues(key: K, value: V) = map + (key -> (map.getOrElse(key, Set.empty) + value))
