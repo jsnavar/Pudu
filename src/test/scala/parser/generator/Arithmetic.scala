@@ -62,5 +62,6 @@ object ArithmeticLexer extends Lexer[Token]:
   "[0-9]+" { s => Token.IntLit(s.toInt) }
 
   "[ \n\t]+".ignore
+  "." { Token.ERROR() }
 
   override val eof = Token.EOF()
