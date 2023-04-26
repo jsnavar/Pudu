@@ -17,8 +17,8 @@ extension[T,ST] (rule: Rule[T,ST])
 
 /** Base class for LR parser generators (SLR, LR(1), LALR) */
 abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[Tree,Token]) extends ParserGenerator[Tree, Token]:
-  type RuleT = Rule[Tree, Tree | Token]
-  type ItemT = Item[Tree, Tree | Token]
+  type RuleT = Rule[Tree, Token]
+  type ItemT = Item[Tree, Token]
   /** A state is just a set of Items. This may be changed in the future */
   type State = Set[ItemT]
 

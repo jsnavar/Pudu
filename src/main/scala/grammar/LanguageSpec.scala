@@ -14,7 +14,7 @@ abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum]:
   type StackTpe = Tree | Token
 
   // Rules are collected into a private mutable set, which is later "fixed" to the immutable set 'rules'
-  private val rulesSet = scala.collection.mutable.HashSet[Rule[Tree,StackTpe]]()
+  private val rulesSet = scala.collection.mutable.HashSet[Rule[Tree,Token]]()
   lazy val rules = rulesSet.toSet
 
   // Non Terminals are the left hand of rules.
