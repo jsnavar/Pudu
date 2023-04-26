@@ -1,28 +1,23 @@
 package pudu.grammar
 
-/** Transforms a curried function 'f' of type T1 => T2 => ... => Tn => R into
- *  function calls equivalent to (omitting the asInstanceOf for readability):
- {{{
-   (args: Seq[ST]) => f(args(n-1))(args(n-2))(args(n-3))...
- }}}
- * In the future, the return type should be simplified to Seq[Any] => R, ommiting
- * the parameter ST. This should be possible using a recursive match type similar
- * to:
- {{{
- type Return[X] = X match
-   case Function1[_,t] => Return[t]
-   case _ => X
- }}}
- */
-inline def seq[ST, S, R](inline numPars: Int, inline fn: S => R): Seq[ST] => ST = seq(numPars, numPars-1, fn)
-inline def seq[ST, S, R](inline numPars: Int, inline depth: Int, inline fn: S => R): Seq[ST] => ST =
-  (args: Seq[Any]) =>
-    inline if depth == 0 then
-      fn(args(depth).asInstanceOf[S]).asInstanceOf[ST]
-    else
-      inline fn(args(depth).asInstanceOf[S]) match
-        case nextFn: Function1[_,_] =>
-          seq(numPars, depth-1, nextFn)(args).asInstanceOf[ST]
+/* Given a function fn: Tup => ST, where Size[Tup] is equal to size, it returns a function Seq[ST] => ST,
+ * which takes the first 'size' elements of the sequence, reverse them, cast them to a tuple Tup (!!),
+ * and finally calls fn on that tuple.
+ * By itself this is obviously unsafe, but used in reductions of a 'correctly implemented' shift
+ * reduce parser, where the semantic actions were defined using the ::= extension method, then it is safe.
+ * This can be proved using that actions in ::= are type checked: each argument match the SymData of the
+ * corresponding symbol, and the return type matches the SymData of the NonTerminal in the lhs; and when the
+ * parser reduces by a production, then the top of the stack has elements corresponding to the rhs of that production. */
+inline def toSeqFn[ST, Tup <: Tuple](inline size: Int, inline fn: Tup => ST): Seq[ST] => ST =
+  (args: Seq[ST]) =>
+    val top = args.take(size).reverse.toArray[Any]
+    val fnArgs = Tuple.fromArray(top).asInstanceOf[Tup]
+    fn(fnArgs)
+
+/* special case for unit productions */
+inline def toSeqFn[ST, T](inline fn: T => ST): Seq[ST] => ST =
+  (args: Seq[ST]) =>
+    fn(args.head.asInstanceOf[T])
 
 /** Gets the ordinal value, and name of an enum case from its type.
  *  This macro abuses the implementation of Enums, using that
@@ -43,12 +38,3 @@ def enumMetadataImpl[T: Type](using Quotes) =
     case Some(x) => x.asExprOf[Int]
   Expr.ofTuple(ordinal, name)
 
-
-inline def untupled[T1, T2, R] = Function.untupled[T1, T2, R]
-inline def untupled[T1, T2, T3, R] = Function.untupled[T1, T2, T3, R]
-inline def untupled[T1, T2, T3, T4, R] = Function.untupled[T1, T2, T3, T4, R]
-inline def untupled[T1, T2, T3, T4, T5, R] = Function.untupled[T1, T2, T3, T4, T5, R]
-
-inline def untupled[T1, T2, T3, T4, T5, T6, R](fn: ((T1, T2, T3, T4, T5, T6)) => R): (T1, T2, T3, T4, T5, T6) => R = fn(_, _, _, _, _, _)
-inline def untupled[T1, T2, T3, T4, T5, T6, T7, R](fn: ((T1, T2, T3, T4, T5, T6, T7)) => R): (T1, T2, T3, T4, T5, T6, T7) => R = fn(_, _, _, _, _, _, _)
-inline def untupled[T1, T2, T3, T4, T5, T6, T7, T8, R](fn: ((T1, T2, T3, T4, T5, T6, T7, T8)) => R): (T1, T2, T3, T4, T5, T6, T7, T8) => R = fn(_, _, _, _, _, _, _, _)

@@ -13,6 +13,7 @@ class LanguageSpecTest extends munit.FunSuite {
     case FuncId(id: String)
     case IntLit(value: Int)
     case EOF()
+    case ERROR()
 
   test("Rule1") {
     object SimpleArithmetic extends LanguageSpec[Int, Token]:
@@ -30,6 +31,7 @@ class LanguageSpecTest extends munit.FunSuite {
 
       override val start = expr
       override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
 
       // Rules
       (expr ::= intLit) {
@@ -63,6 +65,7 @@ class LanguageSpecTest extends munit.FunSuite {
 
       override val start = expr
       override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
 
       // Rules
       (expr ::= (plus, intLit)) {
@@ -96,6 +99,7 @@ class LanguageSpecTest extends munit.FunSuite {
 
       override val start = expr
       override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
 
       // Rules
       (expr ::= (expr, plus, expr)) {
@@ -128,6 +132,7 @@ class LanguageSpecTest extends munit.FunSuite {
 
       override val start = expr
       override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
 
       // Rules
       (expr ::= (minus, expr, times, expr)) {
@@ -161,6 +166,7 @@ class LanguageSpecTest extends munit.FunSuite {
 
       override val start = expr
       override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
 
       // Rules
       (expr ::= (lpar, expr, minus, expr, rpar)) {
@@ -195,6 +201,7 @@ class LanguageSpecTest extends munit.FunSuite {
 
       override val start = expr
       override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
 
       // Rules
       (expr ::= (lpar, expr, minus, expr, rpar)) {
@@ -233,6 +240,7 @@ class LanguageSpecTest extends munit.FunSuite {
 
       override val start = expr
       override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
 
       // Rules
       (expr ::= (lpar, expr, minus, expr, rpar)) {
@@ -271,6 +279,7 @@ class LanguageSpecTest extends munit.FunSuite {
 
       override val start = expr
       override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
 
       // Rules
       (expr ::= (lpar, expr, minus, expr, rpar)) {
@@ -310,6 +319,7 @@ class LanguageSpecTest extends munit.FunSuite {
 
       override val start = expr
       override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
 
       (exprList ::= expr) { List(_) }
       (exprList ::= (expr, comma, exprList)) { (exp, _, list) => exp :: list }

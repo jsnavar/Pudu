@@ -25,6 +25,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
   /* Grammar is augmented with a new start symbol */
   val startSymbol = NonTerminal[Tree]("S'")
   val eof: Terminal[Token] = lang.eof
+  val error: Terminal[Token] = lang.error
   val augmentedRule: RuleT = Rule(startSymbol, Seq(lang.start), _.head)
 
   val rules = lang.rules + augmentedRule

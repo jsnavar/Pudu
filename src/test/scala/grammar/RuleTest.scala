@@ -11,6 +11,7 @@ class RuleTest extends munit.FunSuite {
     case FuncId(id: String)
     case IntLit(value: Int)
     case EOF()
+    case ERROR()
 
   object SimpleArithmetic extends LanguageSpec[Int, Token]:
     // Symbol objects
@@ -19,6 +20,7 @@ class RuleTest extends munit.FunSuite {
 
     override val start = expr
     override val eof = Terminal[Token.EOF]
+    override val error = Terminal[Token.ERROR]
 
     // Rules
     (expr ::= (expr, plus, expr)) {

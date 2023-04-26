@@ -89,7 +89,7 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
     // cast symbols to 'Terminal[Token]'.
     val castedTerminalEdges = terminalEdges.map((key, value) =>
       val (keyState, keySymbol) = key
-      if keySymbol.isInstanceOf[Terminal[Any]] then
+      if keySymbol.isInstanceOf[Terminal[_]] then
         ((keyState, keySymbol.asInstanceOf[Terminal[Token]]), value)
       else
         throw Exception("There was a non terminal in 'terminal'"))

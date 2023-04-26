@@ -3,7 +3,7 @@ import pudu.grammar._
 class FunctionsTest extends munit.FunSuite {
   test("seq length 1") {
     val f = (x: Int) => x * 3
-    val sf: Seq[Int]=>Int = seq(1, f)
+    val sf: Seq[Int]=>Int = toSeqFn(f)
 
     val args = Seq(2,3,4)
 
@@ -14,7 +14,7 @@ class FunctionsTest extends munit.FunSuite {
 
     def f(x1: Int, x2: String, x3: Int, x4: String) =
       x2 + x1 + x3 + x4
-    val sf: Seq[Int|String] => Int|String = seq(4, f.curried)
+    val sf = toSeqFn[Int|String,(Int,String,Int,String)](4, f)
     val args : Seq[Int|String] = Seq(".", 3, "str: ", 2)
     assertEquals(sf(args), "str: 23.")
   }

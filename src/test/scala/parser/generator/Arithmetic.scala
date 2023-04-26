@@ -11,6 +11,7 @@ enum Token:
   case FuncId(id: String)
   case IntLit(value: Int)
   case EOF()
+  case ERROR()
 
 object SimpleArithmetic extends LanguageSpec[Int|List[Int], Token]:
   // Symbol objects
@@ -25,9 +26,9 @@ object SimpleArithmetic extends LanguageSpec[Int|List[Int], Token]:
   val comma  = Terminal[Token.Comma]
   val funcId = Terminal[Token.FuncId]
   val intLit = Terminal[Token.IntLit]
-  val eofTerminal = Terminal[Token.EOF]
 
-  override val eof = eofTerminal
+  override val eof = Terminal[Token.EOF]
+  override val error = Terminal[Token.ERROR]
   override val start = expr
   override val precedence = Precedence().left(plus, minus).left(times)
 

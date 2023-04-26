@@ -9,14 +9,12 @@ package pudu.grammar
  *
  *  Types Tree and Token refer to the types used for NonTerminal and Terminal respectively */
 abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum]:
-  /* As [[pudu.grammar.Symbol]] is not parametrized, and could have subclasses different from
-   * Terminal and NonTerminal, we define the union type Sym to mean the union of NonTerminal[Tree]
-   * and Terminal[Token]. This is usually very big (Any?), but it adds some safety (sometimes) */
-  type Par = Tree | Token
-  type Sym[T <: Par] = NonTerminal[T] | Terminal[T]
+  /* Semantic actions in shift-reduce parsers are computed using a stack, which holds either
+   * tokens, or objects of type <: Tree. Here, we represent that with the union type StackTpe */
+  type StackTpe = Tree | Token
 
   // Rules are collected into a private mutable set, which is later "fixed" to the immutable set 'rules'
-  private var rulesSet = scala.collection.mutable.HashSet[Rule[Tree,Par]]()
+  private val rulesSet = scala.collection.mutable.HashSet[Rule[Tree,StackTpe]]()
   lazy val rules = rulesSet.toSet
 
   // Non Terminals are the left hand of rules.
@@ -26,46 +24,19 @@ abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum]:
 
   val start: Symbol
   val eof: Terminal[Token]
+  val error: Terminal[Token]
   val precedence: Precedence = Precedence.empty
+
+  type TupSymData[T <: NonEmptyTuple] = Tuple.Map[T, SymData]
 
   /** Rule definition methods. Given a NonTerminal left, a rule can be defined as
     {{{    (left ::= (r1, r2, r3)) { (v1, v2 v3) => ... }      }}}
     * where the types of v1, v2, and v3 are inferred from 'r1', 'r2', and 'r3' */
-  /* TODO: create these methods using reflection (Symbol.newMethod, DefDef, etc) */
   extension [R <: Tree] (left: NonTerminal[R])
-    protected inline def ::= [T1 <: Par] (inline right: Sym[T1])(inline fn: T1 => R): Unit =
-      rulesSet += Rule[Tree, Par](left, Seq(right), seq(1, fn))
-
-    protected inline def ::= [T1 <: Par, T2 <: Par]
-        (inline right:(Sym[T1], Sym[T2]))(inline fn: ((T1,T2)) => R): Unit =
-      rulesSet += Rule[Tree, Par](left, Seq(right(0), right(1)), seq(2, untupled(fn).curried))
-
-    protected inline def ::= [T1 <: Par, T2 <: Par, T3 <: Par]
-        (inline right: (Sym[T1],Sym[T2],Sym[T3]))
-        (inline fn: ((T1,T2,T3)) => R): Unit =
-      rulesSet += Rule[Tree, Par](left, Seq(right(0), right(1), right(2)), seq(3, untupled(fn).curried))
-
-    protected inline def ::= [T1 <: Par, T2 <: Par, T3 <: Par, T4 <: Par]
-        (inline right: (Sym[T1],Sym[T2],Sym[T3],Sym[T4]))
-        (inline fn: ((T1,T2,T3,T4)) => R): Unit =
-      rulesSet += Rule[Tree, Par](left, Seq(right(0), right(1), right(2), right(3)), seq(4, untupled(fn).curried))
-
-    protected inline def ::= [T1 <: Par, T2 <: Par, T3 <: Par, T4 <: Par, T5 <: Par]
-        (inline right: (Sym[T1], Sym[T2], Sym[T3], Sym[T4], Sym[T5]))
-        (inline fn: ((T1,T2,T3,T4,T5)) => R): Unit =
-      rulesSet += Rule[Tree, Par](left, Seq(right(0), right(1), right(2), right(3), right(4)), seq(5, untupled(fn).curried))
-
-    protected inline def ::= [T1 <: Par, T2 <: Par, T3 <: Par, T4 <: Par, T5 <: Par, T6 <: Par]
-        (inline right: (Sym[T1], Sym[T2], Sym[T3], Sym[T4], Sym[T5], Sym[T6]))
-        (inline fn: ((T1,T2,T3,T4,T5,T6)) => R): Unit =
-      rulesSet += Rule[Tree, Par](left, Seq(right(0), right(1), right(2), right(3), right(4), right(5)), seq(6, untupled(fn).curried))
-
-    protected inline def ::= [T1 <: Par, T2 <: Par, T3 <: Par, T4 <: Par, T5 <: Par, T6 <: Par, T7 <: Par]
-        (inline right: (Sym[T1], Sym[T2], Sym[T3], Sym[T4], Sym[T5], Sym[T6], Sym[T7]))
-        (inline fn: ((T1,T2,T3,T4,T5,T6,T7)) => R): Unit =
-      rulesSet += Rule[Tree, Par](left, Seq(right(0), right(1), right(2), right(3), right(4), right(5), right(6)), seq(7, untupled(fn).curried))
-
-    protected inline def ::= [T1 <: Par, T2 <: Par, T3 <: Par, T4 <: Par, T5 <: Par, T6 <: Par, T7 <: Par, T8 <: Par]
-        (inline right: (Sym[T1], Sym[T2], Sym[T3], Sym[T4], Sym[T5], Sym[T6], Sym[T7], Sym[T8]))
-        (inline fn: ((T1,T2,T3,T4,T5,T6,T7,T8)) => R): Unit =
-      rulesSet += Rule[Tree, Par](left, Seq(right(0), right(1), right(2), right(3), right(4), right(5), right(6), right(7)), seq(8, untupled(fn).curried))
+    protected inline def ::= [Tup <: NonEmptyTuple] (inline right: Tup)(inline fn: TupSymData[Tup] => R)(using Tup <:< SymTuple[Tup]): Unit =
+      rulesSet += Rule(left,
+                       right.toList.asInstanceOf[Seq[Symbol]], // this cast is safe by the <:< clause above
+                       toSeqFn(right.size, fn))
+    /* This is defined to allow syntax (left ::= right) for unit productions, instead of (left ::= (right) */
+    protected inline def ::= [T <: Symbol] (inline right: T)(inline fn: SymData[T] => R): Unit =
+      rulesSet += Rule(left, Seq(right), toSeqFn(fn))
