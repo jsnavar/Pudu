@@ -2,8 +2,6 @@ package pudu.parser
 
 import pudu.grammar.LanguageSpec
 
-case class ErrorMsg(msg: String)
-
 /** Subclasses of ParserGenerator should implement parser generators :), e.g. LR1ParserGenerator, LALRParserGenerator, ...
  *  a parser is a function of type Iterator[Token] => Tree */
 abstract class ParserGenerator[Tree, Token <: scala.reflect.Enum]:
