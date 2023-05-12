@@ -38,6 +38,6 @@ class IntTest extends munit.FunSuite {
     val result = parser(lexer)
 
     assert(result.isLeft)
-    assertEquals(result.left.get.msg, "Lexical error")
+    assertEquals(result.left.get.msg, "Lexical error.")
   }
 }

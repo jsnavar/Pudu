@@ -11,7 +11,7 @@ enum Token:
   case FuncId(id: String)
   case IntLit(value: Int)
   case EOF()
-  case ERROR()
+  case ERROR(str: String)
 
 object SimpleArithmetic extends LanguageSpec[Int|List[Int], Token]:
   // Symbol objects
@@ -62,6 +62,6 @@ object ArithmeticLexer extends Lexer[Token]:
   "[0-9]+" { s => Token.IntLit(s.toInt) }
 
   "[ \n\t]+".ignore
-  "." { Token.ERROR() }
+  "." { Token.ERROR(_) }
 
   override val eof = Token.EOF()

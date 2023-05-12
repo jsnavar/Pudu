@@ -143,7 +143,13 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
         case Accept =>
           Right(stack.head.asInstanceOf[Tree])
         case Error =>
-          Left(SyntaxError(token))
+          // This map is only needed in case of a syntax error,
+          // so it is computed here
+          val tokensNames = terminals.asInstanceOf[Set[Terminal[_]]] //
+            .map(t => t.ordinal -> t.name).toMap
+          val expected = action.keys.filter(_._1 == states.head).map(_._2)
+            .map(tokensNames)
+          Left(SyntaxError(token, expected))
     if input.hasNext then
       parsingImpl(input.next, Seq(0), Seq.empty)
     else
