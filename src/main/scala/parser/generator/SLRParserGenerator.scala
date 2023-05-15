@@ -30,6 +30,10 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
     val key = actionTableKey(from, terminal)
     (key, Reduce(rule))
 
+  def errorOn(from: State, terminal: Terminal[Token]): ActionTableEntry =
+    val key = actionTableKey(from, terminal)
+    (key, Error)
+
   /** uses precedence to solve shift reduce conflicts. Default is to shift, in
    *  accordance to tradition (https://www.gnu.org/software/bison/manual/html_node/How-Precedence.html) */
   def shiftReduceResolution(from: State, to: State)(rule: RuleT, terminal: Terminal[Token]): ActionTableEntry =
@@ -46,17 +50,25 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
   /** if [A -> \alpha\cdot] is in state, and terminal is in Follow(A), then
     * reduce by the rule A -> \alpha */
   lazy val reduceActions: Map[(State, Terminal[Token]), RuleT] =
+    /** Given an item A -> \alpha\cdot in state, returns a tuple (state, s, A -> \alpha)
+     *  for each s\in follow(A) */
     def itemReduceActions(state: State, item: ItemT): Set[(State, Terminal[Token], RuleT)] =
+      require(item.after.isEmpty)
       follow(item.left).map(symbol => (state, symbol, item.rule))
 
     states.flatMap { state =>
+      /* For each state 'state', compute pairs ((state, symbol), rules),
+       * where rules is the set of rules to reduce by, given the pair (state, symbol). */
       val stateResult = state.filter(_.after.isEmpty).flatMap(itemReduceActions(state,_))
         .groupMap(t => (t._1, t._2))(_._3)
+
+      /* If for some value of (state, symbol), stateResult((state, symbol)) contains more
+       * than one element, then we have a RR conflict */
       if stateResult.find(_._2.size != 1).isDefined then
-        throw ReduceReduceConflictException(stateResult.map(_._2))
+        throw ReduceReduceConflictException(stateResult.find(_._2.size != 1).map(_._2))
       else
         stateResult
-    }.toMap.map((k,v) => k -> v.head)
+    }.toMap.mapValues(_.head).toMap // Finally, as all sets of rules are singletons, get the first element from each
 
   /** Decides the action for an automaton edge */
   def edgeAction(from: (State, Terminal[Token]), to: State): ActionTableEntry =
@@ -66,9 +78,11 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
     // shift to 'to'
     val shift = state.find((item: ItemT) => !item.after.isEmpty && item.after.head == terminal).isDefined
     if shift && reduce then
+      // SR Conflict
       shiftReduceResolution(state, to)(reduceActions(state, terminal), terminal)
-    else if shift then shiftTo(state, terminal, to)
-    else reduceBy(state, terminal, reduceActions(state, terminal))
+    else if shift then shiftTo(state, terminal, to) 
+    else if reduce then reduceBy(state, terminal, reduceActions(state, terminal))
+    else errorOn(state, terminal) // This should never happen
 
   // ((stateIndex, nonTerminalSymbol), stateIndex)
   type GotoTableEntry = ((Int, Symbol), Int)
@@ -92,7 +106,7 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
       if keySymbol.isInstanceOf[Terminal[_]] then
         ((keyState, keySymbol.asInstanceOf[Terminal[Token]]), value)
       else
-        throw Exception("There was a non terminal in 'terminal'"))
+        throw Exception("There was a non terminal in 'terminals'"))
 
     // accept state:
     val startState = closure(Set(augmentedRule.toItem))
