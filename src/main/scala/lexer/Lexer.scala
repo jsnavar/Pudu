@@ -17,7 +17,7 @@ abstract class Lexer[Token <: reflect.Enum]:
 
   private var entries = Seq.empty[LexerCase]
 
-  val eof: Token
+  def eof: Token
 
   /* Register the LexerCases into 'entries' */
   extension (str: String)
