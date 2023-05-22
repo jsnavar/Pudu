@@ -6,7 +6,7 @@ import pudu.grammar._
 /** Generates a human readable report on parser */
 class SLRReport[Tree, Token <: reflect.Enum](parser: SLRParserGenerator[Tree, Token]):
 
-  def indentNL[T](ntabs: Int, c: Iterable[T]): String =
+  private def indentNL[T](ntabs: Int, c: Iterable[T]): String =
     c.map(x => "\t" * ntabs + x).mkString("\n")
 
   def rules: String = indentNL(1, parser.rules)
@@ -40,5 +40,12 @@ class SLRReport[Tree, Token <: reflect.Enum](parser: SLRParserGenerator[Tree, To
         s"\t(State: $fromIdx, Symbol: $symbol) => State: $toIdx"
     }.mkString("\n")
 
-  def actions: String = ???
+  def actionTable: String =
+    def actionString(key: (Int, Int), action: SRAction) =
+      val (state, ordinal) = key
+      val tokName = parser.tokenNames.getOrElse(ordinal, "UNK")
+      s"(state($state), $tokName) --> $action"
+    indentNL(1, parser.actionTable.map(actionString))
 
+  def reportAll: String =
+    s" Rules:\n\n$rules\n\n States:\n\n$states\n\n Action Table:\n\n$actionTable\n"

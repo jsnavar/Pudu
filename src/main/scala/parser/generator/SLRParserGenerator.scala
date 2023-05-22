@@ -94,7 +94,7 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
     val toIdx = indexedStates(to)
     (fromStateIdx, symbol) -> toIdx
 
-  def parser: Iterator[Token] => Either[ErrorMsg, Tree] =
+  lazy val (actionTable, gotoTable) =
     // split automaton edges in terminal and nonterminal edges
     val splittedEdges = lr0Automaton.groupBy((key, value) => isTerminal(key._2))
     val nonTerminalEdges = splittedEdges(false)
@@ -119,4 +119,7 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
     val actionTable = (reduce ++ castedTerminalEdges.map(edgeAction)).updated((acceptStateIndex, eof.ordinal), Accept)
       .filterNot(_._2 == Error)
     val gotoTable = nonTerminalEdges.map(edgeGoto)
+    (actionTable, gotoTable)
+
+  def parser: Iterator[Token] => Either[ErrorMsg, Tree] =
     lrParse(actionTable, gotoTable)
