@@ -38,15 +38,20 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
   def isTerminal(symbol: Symbol) = terminals.contains(symbol)
   def isNonTerminal(symbol: Symbol) = nonTerminals.contains(symbol)
 
+  /** maps a token ordinal to its name. This is only used to generate
+   *  error messages, so it is declared as lazy */
+  lazy val tokenNames = terminals.asInstanceOf[Set[Terminal[_]]]
+    .map(t => t.ordinal -> t.name).toMap
+
   /** Closure of a state. Follows the standard definition */
   def closure(state: State): State =
     stateClosure(state, rules.map(_.toItem))
 
   def stateClosure(state: State, candidates: Set[ItemT]): State =
-    // First, we take the symbols after the dot for each item in state
+    // First, we take the symbols after the dot for each item in 'state'
     val starting = state.filterNot(_.after.isEmpty).map(_.after.head)
-    // Then, select the candidates whose left part is in the previous set
-    val newItems = candidates.filter((item: ItemT) => starting.contains(item.left))
+    // Then, select the candidates whose left part is in the 'starting' set
+    val newItems = candidates.filter(item => starting.contains(item.left))
     // Continue recursively until no more items are added
     if newItems.isEmpty then state
     else stateClosure(state ++ newItems, candidates -- newItems)
@@ -61,21 +66,21 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     closure(shifted)
 
   /** computes the goto of every relevant symbol in 'state', returning a map such that
-   *  goto(state)(symbol) := goto(state, symbol) */
+   *  goto(state)(symbol) equals goto(state, symbol) */
   def goto(state: State): Map[(State, Symbol), State] =
     state.filterNot(_.after.isEmpty)
       .groupBy(_.after.head)
       .map((symbol, gotoState) => ((state, symbol), closure(gotoState.map(_.shift))))
 
-  /** Computes the LR0 automaton, i.e. a map that given a states and a symbol, returns
+  /** Computes the LR0 automaton, i.e. a map that given a state and a symbol, returns
    *  the next state */
   lazy val lr0Automaton: Map[(State, Symbol), State] =
     def computeAutomaton(current: Map[(State, Symbol), State], computed: Set[State], frontier: Set[State]): Map[(State, Symbol), State] =
-      // Compute goto for each state in frontier, getting a Map[(State, Symbol), State] with all results
+      // Compute goto for each state in frontier, getting a Map[(State, Symbol), State] with all the results
       val newEdges = frontier.flatMap(goto)
-      // Finds all states reached in the previous step, that has not been visited before
+      // Finds all states reached in the previous step, that had not been visited before
       val newStates = newEdges.map(_._2) -- computed
-      // Continues until no new state is found
+      // Continue until no new state is found
       if newStates.isEmpty then current ++ newEdges
       else
         computeAutomaton(current ++ newEdges, computed ++ frontier, newStates)
@@ -88,10 +93,9 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
   extension[K, V] (map: Map[K, Set[V]])
     def addToValues(key: K, value: V) = map + (key -> (map.getOrElse(key, Set.empty) + value))
 
-  /** Least fixed point of current, over the graph given by edges.
-   *  This implementation only adds edges that reach current, so it is not
-   *  a general lfp, but the other direction is not needed to
-   *  compute FIRST and FOLLOW */
+  /** Given a set of pairs 'current: Set[(L, R)]', and a graph 'edges: Set[(L, L)]',
+   *  this function computes:
+   *  { (x: L, y: R) | there exists z: L, such that z is reachable from x on 'edges', and (z,y)\in 'current' } */
   def lfp[L, R](edges: Set[(L, L)], current: Set[(L, R)]): Set[(L,R)] =
     //compute the new pairs
     val next = for
@@ -104,9 +108,9 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     else lfp(edges, current ++ next)
 
   type SymPair = (Symbol, Symbol)
-  /** Given a set of pairs (a,b), it returns a map:
+  /** Given a set of pairs (a,b), groupPairs returns a map:
    *  {a -> s| s contains all elements b, such that (a,b)\in pairs} */
-  def groupPairs[L, R](pairs: Set[(L,R)]) =
+  def groupPairs[L, R](pairs: Set[(L,R)]): Map[L, Set[R]] =
     pairs.groupMapReduce(_._1)((p: (L,R)) => Set(p._2))(_ ++ _)
 
   /** Pudu does not support null productions, so FIRST reduces to reachability
@@ -117,7 +121,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     val start = terminals.map(t => t -> t.asInstanceOf[Terminal[Token]])
     groupPairs(lfp(edges, start))
 
-  /** FOLLOW is also computed as a LFP but with reversed edges: from the last
+  /** FOLLOW is also computed as reachability but with reversed edges: from the last
    *  symbol of the rhs to the left symbol. This follows the definition,
    *  because for each production X ::= ...Z, FOLLOW(X)\subseteq FOLLOW(Z) */
   lazy val follow: Map[Symbol, Set[Terminal[Token]]] =
@@ -137,27 +141,38 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
 
   /** LR parsing algorithm */
   def lrParse(action: Map[(Int, Int), SRAction], goto: Map[(Int, Symbol), Int])(input: Iterator[Token]): Either[ErrorMsg, Tree] =
+    def expectedTokens(state: Int) = action
+        .keys.filter(_._1 == state)
+        .map(_._2) //token ordinals with a valid action table entry
+        .map(tokenNames)
+
     /** Tries to get the next token. */
-    def nextToken(last: Token): Either[ErrorMsg, Token] =
+    def nextToken(last: Token, state: Int): Either[ErrorMsg, Token] =
       if !input.hasNext then
-        Left(InputEndedUnexpectedly(last))
+        val expected = expectedTokens(state)
+        Left(InputEndedUnexpectedly(expected))
       else
         val tok = input.next
         if tok.ordinal == error.ordinal then
-          // Lexical error as defined by the lexer
+          // Lexical error are defined by the lexer
           Left(LexError(tok))
         else
           Right(tok)
+    def syntaxError(token: Token, state: Int): ErrorMsg =
+      val expected = expectedTokens(state)
+      if token.ordinal == eof.ordinal then InputEndedUnexpectedly(expected)
+      else SyntaxError(token, expected)
 
-    /** token is the next token to be processed, states the parsing states stack, and stack the semantic
+    /** 'token' is the next token to be processed, 'states' the parsing states stack, and 'stack' the semantic
      *  actions stack */
     def parsingImpl(token: Token, states: Seq[Int], stack: Seq[Tree|Token]): Either[ErrorMsg, Tree] =
-      // Check the sr action from the action table
-      action.getOrElse((states.head, token.ordinal), Error) match
+      // Check the SR action from the action table
+      val state = states.head
+      action.getOrElse((state, token.ordinal), Error) match
         case Shift(to) =>
-          nextToken(token).flatMap {
-            /* If nextToken succeeds, calls parsingImpl recursively with the next token, and updated stacks.
-             * If nextToken fails, then it just forwards the left ErrorMsg */
+          nextToken(token, state).flatMap {
+            /* If nextToken succeeds, calls parsingImpl recursively with the next token and updated stacks.
+             * If nextToken fails, then it just forwards the ErrorMsg */
             parsingImpl(_, to +: states, token +: stack)
           }
         case Reduce(ruleAny) =>
@@ -169,14 +184,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
           // the final value is the top of 'stack'
           Right(stack.head.asInstanceOf[Tree])
         case Error =>
-          // This map is only needed in case of a syntax error,
-          // so it is computed here (it could be a lazy val defined elsewhere, but
-          // it is not used anywhere else)
-          val tokensNames = terminals.asInstanceOf[Set[Terminal[_]]]
-            .map(t => t.ordinal -> t.name).toMap
-          val expected = action.keys.filter(_._1 == states.head).map(_._2) //token ordinals with a valid action table entry
-            .map(tokensNames)
-          Left(SyntaxError(token, expected))
+          Left(syntaxError(token, states.head))
     if input.hasNext then
       parsingImpl(input.next, Seq(0), Seq.empty)
     else

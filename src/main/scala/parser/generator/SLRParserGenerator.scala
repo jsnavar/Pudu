@@ -74,13 +74,13 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
   def edgeAction(from: (State, Terminal[Token]), to: State): ActionTableEntry =
     val (state, terminal) = from
     val reduce = reduceActions.contains(state, terminal)
-    // if [A -> \alpha\cdot a\beta] is in state, and a = terminal, then
+    // if [A -> \alpha\cdot a\beta] is in state, and a equals terminal, then
     // shift to 'to'
-    val shift = state.find((item: ItemT) => !item.after.isEmpty && item.after.head == terminal).isDefined
+    val shift = state.find(item => !item.after.isEmpty && item.after.head == terminal).isDefined
     if shift && reduce then
       // SR Conflict
       shiftReduceResolution(state, to)(reduceActions(state, terminal), terminal)
-    else if shift then shiftTo(state, terminal, to) 
+    else if shift then shiftTo(state, terminal, to)
     else if reduce then reduceBy(state, terminal, reduceActions(state, terminal))
     else errorOn(state, terminal) // This should never happen
 
@@ -100,7 +100,7 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
     val nonTerminalEdges = splittedEdges(false)
 
     val terminalEdges = splittedEdges(true)
-    // cast symbols to 'Terminal[Token]'.
+    // cast terminal symbols to 'Terminal[Token]'.
     val castedTerminalEdges = terminalEdges.map((key, value) =>
       val (keyState, keySymbol) = key
       if keySymbol.isInstanceOf[Terminal[_]] then
@@ -114,8 +114,9 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
 
     val reduce = reduceActions.map((k, rule) => reduceBy(k._1, k._2, rule))
 
-    // build action and goto tables, using the functions defined above, and
+    // build action and goto tables using the functions defined above, and
     // add acceptance condition to actionTable
     val actionTable = (reduce ++ castedTerminalEdges.map(edgeAction)).updated((acceptStateIndex, eof.ordinal), Accept)
+      .filterNot(_._2 == Error)
     val gotoTable = nonTerminalEdges.map(edgeGoto)
     lrParse(actionTable, gotoTable)

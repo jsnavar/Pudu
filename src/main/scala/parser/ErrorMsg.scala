@@ -4,24 +4,28 @@ import scala.util.Try
 
 trait ErrorMsg:
   def msg: String
+
+def expectedStr(expected: Iterable[String]) =
+  if expected.isEmpty then "nothing (??)"
+  else if expected.size == 1 then expected.head.toString
+  else
+    val alternatives = expected.mkString(",")
+    s"any of <$alternatives>"
+
 /** Syntax Error: Found unexpected token */
 case class SyntaxError[Token](found: Token, expected: Iterable[String]) extends ErrorMsg:
   override def msg: String = 
     val foundStr = tokenToString(found)
-    val expectedStr = if expected.isEmpty then "nothing (??)"
-      else if expected.size == 1 then expected.head.toString
-      else s"any of <${expected.mkString(','.toString)}>"
-    s"Syntax error. Found $foundStr, expected $expectedStr"
+    s"Syntax error. Found $foundStr, expected ${expectedStr(expected)}"
 
 /** Empty Input: This represents an input without any token */
 object EmptyInputError extends ErrorMsg:
   override def msg: String = "Input is empty!"
 
 /** Unexpected eof */
-case class InputEndedUnexpectedly[Token](last: Token) extends ErrorMsg:
+case class InputEndedUnexpectedly[Token](expected: Iterable[String]) extends ErrorMsg:
   override def msg: String =
-    val lastStr = tokenToString(last)
-    s"Input ended unexpectedly. Last token was $lastStr"
+    s"Input ended unexpectedly. Expected ${expectedStr(expected)}"
 
 /** Generated whenever the lexer yields an error token */
 case class LexError[Token](found: Token) extends ErrorMsg:

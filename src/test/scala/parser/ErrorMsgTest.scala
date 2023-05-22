@@ -43,7 +43,8 @@ class ErrorMsgTest extends munit.FunSuite {
 
     assert(result.isLeft)
     val error: ErrorMsg = result.left.get
-    assertEquals(error.msg, "Input ended unexpectedly. Last token was Plus")
+    val msg = "Input ended unexpectedly."
+    assertEquals(error.msg.take(msg.size), msg)
   }
 
   test("Empty input") {
