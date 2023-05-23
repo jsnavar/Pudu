@@ -14,7 +14,7 @@ def expectedStr(expected: Iterable[String]) =
 
 /** Syntax Error: Found unexpected token */
 case class SyntaxError[Token](found: Token, expected: Iterable[String]) extends ErrorMsg:
-  override def msg: String = 
+  override def msg: String =
     val foundStr = tokenToString(found)
     s"Syntax error. Found $foundStr, expected ${expectedStr(expected)}"
 
