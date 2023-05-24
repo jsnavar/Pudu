@@ -161,7 +161,8 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     def syntaxError(token: Token, state: Int): ErrorMsg =
       val expected = expectedTokens(state)
       if token.ordinal == eof.ordinal then InputEndedUnexpectedly(expected)
-      else SyntaxError(token, expected)
+      else if token.ordinal == error.ordinal then LexError(token)
+      else SyntaxError(token, tokenNames(token.ordinal), expected)
 
     /** 'token' is the next token to be processed, 'states' the parsing states stack, and 'stack' the semantic
      *  actions stack */

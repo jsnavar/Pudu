@@ -13,9 +13,9 @@ def expectedStr(expected: Iterable[String]) =
     s"any of <$alternatives>"
 
 /** Syntax Error: Found unexpected token */
-case class SyntaxError[Token](found: Token, expected: Iterable[String]) extends ErrorMsg:
+case class SyntaxError[Token](found: Token, terminalName: String, expected: Iterable[String]) extends ErrorMsg:
   override def msg: String =
-    val foundStr = tokenToString(found)
+    val foundStr = tokenToString(found, terminalName)
     s"Syntax error. Found $foundStr, expected ${expectedStr(expected)}"
 
 /** Empty Input: This represents an input without any token */
@@ -23,7 +23,7 @@ object EmptyInputError extends ErrorMsg:
   override def msg: String = "Input is empty!"
 
 /** Unexpected eof */
-case class InputEndedUnexpectedly[Token](expected: Iterable[String]) extends ErrorMsg:
+case class InputEndedUnexpectedly(expected: Iterable[String]) extends ErrorMsg:
   override def msg: String =
     s"Input ended unexpectedly. Expected ${expectedStr(expected)}"
 
@@ -41,5 +41,8 @@ def tokenPosition[Token](token: Token): Option[Any] =
 /** String representation of a token, with position if defined */
 def tokenToString[Token](token: Token): String =
   val name = token.getClass().getName().split('$').last
+  tokenToString(token, name)
+
+def tokenToString[Token](token: Token, name: String): String =
   val positionString = tokenPosition(token).map(pos => s" at: $pos")
   name + positionString.getOrElse("")
