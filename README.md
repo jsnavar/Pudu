@@ -158,7 +158,7 @@ then, we create a parser generator, and get the parser:
   val parser: Iterator[Token] => Either[ErrorMsg, Tree] = parserGen.parser
 ```
 and finally, we can compose both into a single function, or simply nest them:
-```
+```scala
   val strParser = parser.compose(lexer)
   val result = strParser("2 * 3 - 4") // = Right(2)
 ```
@@ -197,7 +197,9 @@ Contains the parser generators. For now, that is only SLR, but we intend to add 
 To implement a parser generator, it is recommended to use a `LanguageSpec` object as parameter, which exposes:
 - `rules: Set[Rule[Tree, Token]]`: Set of productions, where `Rule[Tree, Token]` is defined as:
 ```scala
-  case class Rule[Tree, Token](left: NonTerminal[Tree], right: Seq[Symbol], action: Seq[Tree|Token]=>(Tree|Token)):
+  case class Rule[Tree, Token](left: NonTerminal[Tree], 
+                               right: Seq[Symbol], 
+                               action: Seq[Tree|Token] => (Tree|Token)):
 ```
 - `terminals: Set[Symbol]`: Set of terminals. 
 - `nonTerminals: Set[Symbol]`: Set of non terminals.
