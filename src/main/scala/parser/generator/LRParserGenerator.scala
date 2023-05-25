@@ -142,9 +142,9 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
   /** LR parsing algorithm */
   def lrParse(action: Map[(Int, Int), SRAction], goto: Map[(Int, Symbol), Int])(input: Iterator[Token]): Either[ErrorMsg, Tree] =
     def expectedTokens(state: Int) = action
-        .keys.filter(_._1 == state)
-        .map(_._2) //token ordinals with a valid action table entry
-        .map(tokenNames)
+        .keys.filter(_._1 == state) //tokens with a valid action table entry
+        .map(_._2) //get ordinal values
+        .map(tokenNames) //names
 
     /** Tries to get the next token. */
     def nextToken(last: Token, state: Int): Either[ErrorMsg, Token] =
@@ -154,7 +154,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
       else
         val tok = input.next
         if tok.ordinal == error.ordinal then
-          // Lexical error are defined by the lexer
+          // Lexical error
           Left(LexError(tok))
         else
           Right(tok)

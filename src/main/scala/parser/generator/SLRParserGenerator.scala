@@ -34,6 +34,10 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
     val key = actionTableKey(from, terminal)
     (key, Error)
 
+  def acceptOn(acceptState: State): ActionTableEntry =
+    val key = actionTableKey(acceptState, eof)
+    (key, Accept)
+
   /** uses precedence to solve shift reduce conflicts. Default is to shift, in
    *  accordance to tradition (https://www.gnu.org/software/bison/manual/html_node/How-Precedence.html) */
   def shiftReduceResolution(from: State, to: State)(rule: RuleT, terminal: Terminal[Token]): ActionTableEntry =
@@ -47,36 +51,33 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
       case Side.Neither => shiftTo(from, terminal, to) // shift by default
       case Side.Error => throw ShiftReduceConflictException(rule, terminal)
 
-  /** if [A -> \alpha\cdot] is in state, and terminal is in Follow(A), then
-    * reduce by the rule A -> \alpha */
+  /** For each state 'state', compute pairs ((state, terminal), rule),
+   *  where rule is the rule to reduce by given the pair (state, terminal).
+   *  Throws a ReduceReduceConflictException in case of a RR conflict. */
   lazy val reduceActions: Map[(State, Terminal[Token]), RuleT] =
-    /** Given an item A -> \alpha\cdot in state, returns a tuple (state, s, A -> \alpha)
-     *  for each s\in follow(A) */
-    def itemReduceActions(state: State, item: ItemT): Set[(State, Terminal[Token], RuleT)] =
-      require(item.after.isEmpty)
-      follow(item.left).map(symbol => (state, symbol, item.rule))
+    /* First, we generate tuples (state, terminal, rule), such that there exists
+     * an item X -> \alpha\cdot in state, and terminal\in FOLLOW(X). */
+    val reduceByCases = for
+      state <- states
+      item <- state
+      if item.after.isEmpty
+      terminal <- follow(item.left)
+    yield (state, terminal, item.rule)
+    /* Then, we group that tuples into ((state, terminal), rule), ensuring
+     * that only tuple exists for each pair (state, terminal) */
+    reduceByCases.groupMap(t => (t._1, t._2))(_._3)
+      .mapValues { rules =>
+        if rules.size > 1 then throw ReduceReduceConflictException(rules)
+        rules.head
+      }.toMap
 
-    states.flatMap { state =>
-      /* For each state 'state', compute pairs ((state, symbol), rules),
-       * where rules is the set of rules to reduce by, given the pair (state, symbol). */
-      val stateResult = state.filter(_.after.isEmpty).flatMap(itemReduceActions(state,_))
-        .groupMap(t => (t._1, t._2))(_._3)
-
-      /* If for some value of (state, symbol), stateResult((state, symbol)) contains more
-       * than one element, then we have a RR conflict */
-      if stateResult.find(_._2.size != 1).isDefined then
-        throw ReduceReduceConflictException(stateResult.find(_._2.size != 1).map(_._2))
-      else
-        stateResult
-    }.toMap.mapValues(_.head).toMap // Finally, as all sets of rules are singletons, get the first element from each
-
-  /** Decides the action for an automaton edge */
+  /** Decides the action for a pair (state, terminal), returning an ActionTableEntry */
   def edgeAction(from: (State, Terminal[Token]), to: State): ActionTableEntry =
     val (state, terminal) = from
     val reduce = reduceActions.contains(state, terminal)
-    // if [A -> \alpha\cdot a\beta] is in state, and a equals terminal, then
+    // if [A -> \alpha\cdot a\beta] is in state, and a equals to 'terminal', then
     // shift to 'to'
-    val shift = state.find(item => !item.after.isEmpty && item.after.head == terminal).isDefined
+    val shift = state.exists(item => !item.after.isEmpty && item.after.head == terminal)
     if shift && reduce then
       // SR Conflict
       shiftReduceResolution(state, to)(reduceActions(state, terminal), terminal)
@@ -88,18 +89,18 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
   type GotoTableEntry = ((Int, Symbol), Int)
 
   def edgeGoto(from: (State, Symbol), to: State): GotoTableEntry =
-    val fromState = from._1
+    val (fromState, symbol) = from
     val fromStateIdx = indexedStates(fromState)
-    val symbol = from._2
     val toIdx = indexedStates(to)
     (fromStateIdx, symbol) -> toIdx
 
   lazy val (actionTable, gotoTable) =
     // split automaton edges in terminal and nonterminal edges
     val splittedEdges = lr0Automaton.groupBy((key, value) => isTerminal(key._2))
-    val nonTerminalEdges = splittedEdges(false)
 
+    val nonTerminalEdges = splittedEdges(false)
     val terminalEdges = splittedEdges(true)
+
     // cast terminal symbols to 'Terminal[Token]'.
     val castedTerminalEdges = terminalEdges.map((key, value) =>
       val (keyState, keySymbol) = key
@@ -108,18 +109,19 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
       else
         throw Exception("There was a non terminal in 'terminals'"))
 
-    // accept state:
-    val startState = closure(Set(augmentedRule.toItem))
-    val acceptStateIndex = indexedStates(lr0Automaton(startState, lang.start))
-
+    // Transform the Map reduceAction into ActionTableEntries */
     val reduce = reduceActions.map((k, rule) => reduceBy(k._1, k._2, rule))
 
-    // build action and goto tables using the functions defined above, and
-    // add acceptance condition to actionTable
-    val actionTable = (reduce ++ castedTerminalEdges.map(edgeAction)).updated((acceptStateIndex, eof.ordinal), Accept)
-      .filterNot(_._2 == Error)
+    // build action and goto tables using the functions defined above
+    val actionTable = reduce ++ castedTerminalEdges.map(edgeAction)
     val gotoTable = nonTerminalEdges.map(edgeGoto)
-    (actionTable, gotoTable)
+
+    // accept state
+    val startState = closure(Set(augmentedRule.toItem))
+    val acceptState = lr0Automaton(startState, lang.start)
+    val acceptEntry: ActionTableEntry = acceptOn(acceptState)
+
+    (actionTable + acceptEntry, gotoTable)
 
   def parser: Iterator[Token] => Either[ErrorMsg, Tree] =
     lrParse(actionTable, gotoTable)
