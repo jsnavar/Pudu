@@ -12,6 +12,11 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
 
   // ((stateIndex, tokenOrdinal), Action)
   type ActionTableEntry = ((Int, Int), SRAction)
+  type ActionTable = Map[(Int,Int), SRAction]
+
+  // ((stateIndex, nonTerminalSymbol), stateIndex)
+  type GotoTableEntry = ((Int, Symbol), Int)
+  type GotoTable = Map[(Int,Symbol), Int]
 
   /** builds the action table key */
   def actionTableKey(from: State, terminal: Terminal[Token]) =
@@ -30,10 +35,7 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
     val key = actionTableKey(from, terminal)
     (key, Reduce(rule))
 
-  def errorOn(from: State, terminal: Terminal[Token]): ActionTableEntry =
-    val key = actionTableKey(from, terminal)
-    (key, Error)
-
+  /** Action table entry for accept action */
   def acceptOn(acceptState: State): ActionTableEntry =
     val key = actionTableKey(acceptState, eof)
     (key, Accept)
@@ -71,57 +73,46 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
         rules.head
       }.toMap
 
-  /** Decides the action for a pair (state, terminal), returning an ActionTableEntry */
-  def edgeAction(from: (State, Terminal[Token]), to: State): ActionTableEntry =
-    val (state, terminal) = from
-    val reduce = reduceActions.contains(state, terminal)
-    // if [A -> \alpha\cdot a\beta] is in state, and a equals to 'terminal', then
-    // shift to 'to'
-    val shift = state.exists(item => !item.after.isEmpty && item.after.head == terminal)
-    if shift && reduce then
-      // SR Conflict
-      shiftReduceResolution(state, to)(reduceActions(state, terminal), terminal)
-    else if shift then shiftTo(state, terminal, to)
-    else if reduce then reduceBy(state, terminal, reduceActions(state, terminal))
-    else errorOn(state, terminal) // This should never happen
-
-  // ((stateIndex, nonTerminalSymbol), stateIndex)
-  type GotoTableEntry = ((Int, Symbol), Int)
-
-  def edgeGoto(from: (State, Symbol), to: State): GotoTableEntry =
-    val (fromState, symbol) = from
-    val fromStateIdx = indexedStates(fromState)
-    val toIdx = indexedStates(to)
-    (fromStateIdx, symbol) -> toIdx
-
   lazy val (actionTable, gotoTable) =
-    // split automaton edges in terminal and nonterminal edges
-    val splittedEdges = lr0Automaton.groupBy((key, value) => isTerminal(key._2))
+    type LRTables = (ActionTable, GotoTable)
 
-    val nonTerminalEdges = splittedEdges(false)
-    val terminalEdges = splittedEdges(true)
+    /* Update LRTables for a given LR0 automaton edge */
+    def updateTables(tables: LRTables, edge: ((State, Symbol), State)): LRTables =
+      /* unapply edge and tables to simplify code */
+      val ((fromState, symbol), toState) = edge
+      val (actionsTable, gotoTable) = tables
 
-    // cast terminal symbols to 'Terminal[Token]'.
-    val castedTerminalEdges = terminalEdges.map((key, value) =>
-      val (keyState, keySymbol) = key
-      if keySymbol.isInstanceOf[Terminal[_]] then
-        ((keyState, keySymbol.asInstanceOf[Terminal[Token]]), value)
-      else
-        throw Exception("There was a non terminal in 'terminals'"))
+      /* updates will depend on the type of symbol */
+      symbol match
+        case t: Terminal[_] =>
+          val terminal = t.asInstanceOf[Terminal[Token]]
+          /* This assert is true by construction of the LR0 automaton */
+          assert(fromState.exists(item => !item.after.isEmpty && item.after.head == terminal))
+          /* Check if there is a SR conflict */
+          val action = if reduceActions.contains(fromState, terminal) then
+            val reduceByRule = reduceActions(fromState, terminal)
+            shiftReduceResolution(fromState, toState)(reduceByRule, terminal)
+          else shiftTo(fromState, terminal, toState)
+          /* update actionsTable */
+          (actionsTable + action, gotoTable)
+        case _: NonTerminal[_] =>
+          /* For non terminals, the edge corresponds to an entry in the goto table */
+          val fromStateIdx = indexedStates(fromState)
+          val toStateIdx = indexedStates(toState)
+          val gotoEntry = (fromStateIdx, symbol) -> toStateIdx
+          (actionsTable, gotoTable + gotoEntry)
 
-    // Transform the Map reduceAction into ActionTableEntries */
-    val reduce = reduceActions.map((k, rule) => reduceBy(k._1, k._2, rule))
+    // Transform the Map reduceAction into an initial ActionTable
+    val reduce = reduceActions.map { case ((from, terminal), rule) => reduceBy(from, terminal, rule) }
+    // Compute tables. Actions table is partial because it lacks the accept condition */
+    val (partialActionTable, gotoTable) = lr0Automaton.foldLeft((reduce, Map.empty))(updateTables)
 
-    // build action and goto tables using the functions defined above
-    val actionTable = reduce ++ castedTerminalEdges.map(edgeAction)
-    val gotoTable = nonTerminalEdges.map(edgeGoto)
-
-    // accept state
+    // add accept condition
     val startState = closure(Set(augmentedRule.toItem))
     val acceptState = lr0Automaton(startState, lang.start)
     val acceptEntry: ActionTableEntry = acceptOn(acceptState)
 
-    (actionTable + acceptEntry, gotoTable)
+    (partialActionTable + acceptEntry, gotoTable)
 
   def parser: Iterator[Token] => Either[ErrorMsg, Tree] =
     lrParse(actionTable, gotoTable)
