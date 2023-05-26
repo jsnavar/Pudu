@@ -29,6 +29,14 @@ class PrecedenceTest extends munit.FunSuite {
     assertEquals(p.max(plus, times), Side.Neither)
     assertEquals(p.max(times, times), Side.Neither)
   }
+  test("undefined left") {
+    val p = Precedence().left(plus)
+    assertEquals(p.max(plus, times), Side.Neither)
+  }
+  test("undefined right") {
+    val p = Precedence().left(plus)
+    assertEquals(p.max(times, plus), Side.Neither)
+  }
   test("same level") {
     val left = Precedence().right(times).left(plus, minus)
     val right = Precedence().right(plus, minus)

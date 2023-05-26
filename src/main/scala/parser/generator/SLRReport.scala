@@ -25,12 +25,11 @@ class SLRReport[Tree, Token <: reflect.Enum](parser: SLRParserGenerator[Tree, To
     }.mkString("\n")
 
   def follow: String =
-    parser.first.map {
+    parser.follow.map {
       case (symbol, fs) =>
         val fsString = fs.mkString(", ")
         s"\tFOLLOW[$symbol] = \n\t\t{ ${fsString} }"
     }.mkString("\n")
-
 
   def lr0Automaton: String =
     parser.lr0Automaton.map {
