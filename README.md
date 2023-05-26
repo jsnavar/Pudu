@@ -1,8 +1,18 @@
 # Pudu
 
-Shift-reduce parser and lexer generator in Scala 3.
+[![CI](https://github.com/jsnavar/Pudu/actions/workflows/scala.yml/badge.svg)](https://github.com/jsnavar/Pudu/actions/workflows/scala.yml)
 
-It is mostly inspired in flex and bison, but used as a library where all definitions —tokens, lexer, parser and actions— are specified using standard Scala code. This simplifies the usage of the library, but comes with a few drawbacks in comparison with bison and flex. Maybe the most important disadvantage is that a program using Pudu includes the *specification* of the parser, but not the parser itself, which needs to be generated in each execution. Most of the times, this can be avoided using serialization, by saving the serialized parser to a file, and reading it back later, but that is not a very clean solution. Nevertheless, as Pudu is intended to be a learning tool, we do not concern ourselves with that problem.
+Shift-reduce parser and lexer generator in Scala 3. It features type checked semantic actions, similar syntax for lexers and parsers, and a modular design.
+
+It is mostly inspired in flex and bison, but used as a library where all definitions —tokens, lexers, parsers and actions— are specified using standard Scala code. This simplifies the usage of the library, but comes with a few drawbacks in comparison with bison and flex. Maybe the most important one is that a program using Pudu includes the *specification* of the parser, but not the parser itself, which needs to be generated in each execution. Most of the times, this can be avoided using serialization, by saving the serialized parser to a file, and reading it back later, but that is not a very clean solution. Nevertheless, as Pudu is intended to be a learning tool, we do not concern ourselves with that problem.
+
+## Distribution
+Pudu is available through [Github Packages](https://github.com/features/packages). Using sbt, it can be consumed with the [djspiewak/sbt-github-packages](https://github.com/djspiewak/sbt-github-packages) plugin, by adding `Resolver.githubPackages("jsnavar")` to `resolvers`, and `"pudu" %% "pudu" % "0.1"` to `libraryDependencies`. It is also required to add `"-Yretain-trees"` to `scalacOptions`, for reasons described [here](https://github.com/jsnavar/Pudu/blob/main/src/main/scala/grammar/functions.scala).
+
+As a simpler alternative, we also provide a giter8 template, which creates an empty project with the right options. To use it, just execute:
+```
+sbt new jsnavar/Pudu.g8
+```
 
 ## Usage
 
@@ -86,13 +96,13 @@ object ArithmeticLexer extends Lexer[Token]:
 ```
 
 **About Lexer Semantics:**
-Given a string and a set of regular expressions, there may be more than one way of tokenizing the input. As a simple example consider the regex "[0-9]+", which can tokenize the string "123" as ("123"), ("12", "3"), ("1", "23"), and ("1", "2", "3"). This opens the problem of how to choose the *right* tokenization, which can not be solved by the lexer itself, as the answer depends on the grammar. One possible solution is to follow a generate and test approach, where we generate all tokenizations, and try to parse them hoping to find a single correct answer. This works, but obviously is not a good idea as the number of tokenizations can be exponential. Considering this situation, we follow the tradition of lex, flex and similar lexer generators, and use a greedy approach. 
+Given a string and a set of regular expressions, there may be more than one way of tokenizing the input. As a simple example consider the regex "[0-9]+", which can tokenize the string "123" as ("123"), ("12", "3"), ("1", "23"), and ("1", "2", "3"). This opens the problem of how to choose the *right* tokenization, which can not be solved by the lexer itself, as the answer depends on the grammar. One possible solution is to follow a generate and test approach, where we generate all tokenizations, and try to parse them hoping to find a single answer, which works, but obviously is not a good idea as the number of tokenizations can be exponential. Considering this situation, we follow the tradition of lex, flex and similar lexer generators, and use a greedy approach. 
 
 Tokenization in Pudu works as follows: first, we choose the regex that matches the longest prefix of the input, call the corresponding action (generate a token or ignore), and then continue recursively with the rest of the input. This process continues until the input ends, or no regex match a prefix. In the first case, the lexer generates the eof token by calling the eof method, and if there are no prefix matches, then the  process stops, i.e. hasNext returns false. It is advised to avoid this later case, by using a catch-all single character error regex, like in the example:
 ```scala
   "." { Token.ERROR(_) }
 ```
-Another consideration is that more than one regex may match the longest prefix, for example keywords and identifiers in most programming languages. In this case, we also follow tradition, and choose the expression defined first. In the example, the string "1" would match as an IntLiteral, and not as an ERROR. 
+Another consideration is that more than one regex may match the longest prefix, for example keywords and identifiers in most programming languages. In this case, we also follow tradition, and choose the expression defined first: in the example, the string "1" would match as an IntLiteral and not as an ERROR. 
 
 In summary, it is recommended to add the single character regex `"."`, generating an error, as the last entry of the specification.
 
@@ -107,7 +117,7 @@ A language specification contains several elements:
 val id = Terminal[Token.Id]
 val expr = NonTerminal[Expr[Int]]
 ```
-we declare two symbols, a terminal `id` corresponding to the token `Token.Id`, and a non terminal `expr`, with semantic type `Expr[Int]`. It is also possible and recommended, to add names to symbols, using the overloaded apply method: `val expr = NonTerminal[Expr[Int]]("expr")`. In this case, error messages and parser reports would use the string "expr" to refer to that symbol, instead of a synthetic name, which may be hard to read.
+we declare two symbols, a terminal `id` corresponding to the token `Token.Id`, and a non terminal `expr`, with semantic type `Expr[Int]`. It is also possible and recommended to add names to symbols, using the overloaded apply method: `val expr = NonTerminal[Expr[Int]]("expr")`. In this case, error messages and parser reports would use the string "expr" to refer to that symbol, instead of a synthetic name, which can be hard to read.
 
 - Special symbols: An specification must override three special symbols: `eof: Terminal[Token]`, `error: Terminal[Token]` and `start: NonTerminal[Tree]`, which denote end of file, lexical errors, and the start symbol of the grammar.
 ```scala
@@ -125,9 +135,9 @@ It is very important to mention that `eof` and  `error` must *not* be used in th
     .nonassoc(uminus, uplus)
     .right(caret)
 ```
-As usual, precedence definitions consist of several levels of precedence, each of them with an associativity rule, which can be left, right or nonassoc. Calling `Precedence()` returns an empty definition, and varargs methods `left`, `right` and `nonassoc` generate a new Precedence object with an added level of the corresponding associativity.
+As usual, precedence definitions consist of several levels of precedence, each of them with an associativity rule, which can be left, right or nonassoc. Calling `Precedence()` returns an empty definition, and varargs methods `left`, `right` and `nonassoc` generate a new Precedence object with an added level of the corresponding kind.
 
-- Productions: Finally, we need the grammar productions. Here we use the method `::=`, which is an extension method of `NonTerminal[T <: Tree]`. It has two parameters in separate parameter lists: a NonEmptyTuple of symbols (Terminals or NonTerminals), and a function representing the semantic action. This function's type is derived and checked from the grammar symbols, for example, in:
+- Productions: Finally, we need the grammar productions. Here we use the method `::=`, which is an extension method of `NonTerminal[T <: Tree]`. It has two parameters in separate parameter lists: a NonEmptyTuple of symbols (Terminals or NonTerminals), and a function representing the semantic action. This function's type is inferred from the grammar symbols, for example, in:
 ```scala
 enum Token:
   case Literal(value: Int)
