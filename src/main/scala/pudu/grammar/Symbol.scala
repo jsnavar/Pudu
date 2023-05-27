@@ -35,8 +35,18 @@ type SymData[T] = T match
   case NonTerminal[t] => t
 
 /* Given a tuple type Tup, SymTuple[Tup] is another
- * tuple type of the same size, with Symbol in every position.
- * This is used to bound tuples using Tup <:< SymTuple[Tup] */
-type SymTuple[Tup <: Tuple] = Tup match
+ * tuple type of the same size, where every position that is
+ * a subtype of NonTerminal[Tree] is replaced by NonTerminal[Tree],
+ * and every position matching Terminal[Token] is replaced by Terminal[Token].
+ * In this way, for an arbitrary tuple Tup, Tup <:< SymTuple[Tup] holds
+ * if and only if every position of Tup matches either NonTerminal[Tree] or
+ * Terminal[Token]. */
+type SymTuple[Tree, Token, Tup <: Tuple] = Tup match
   case EmptyTuple => EmptyTuple
-  case x *: xs => Symbol *: SymTuple[xs]
+  case NonTerminal[Tree] *: xs => NonTerminal[Tree] *: SymTuple[Tree, Token, xs]
+  case Terminal[Token] *: xs => Terminal[Token] *: SymTuple[Tree, Token, xs]
+
+/* Matches to true iff T is a subtype of NonTerminal[Tree] or Terminal[Token] */
+type IsBounded[Tree, Token, T] = T match
+  case NonTerminal[Tree] => true
+  case Terminal[Token] => true

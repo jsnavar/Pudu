@@ -346,4 +346,52 @@ class LanguageSpecTest extends munit.FunSuite {
     assertEquals(SimpleArithmetic.nonTerminals, Set(SimpleArithmetic.expr, SimpleArithmetic.exprList))
     assert(SimpleArithmetic.terminals.size == 8)
   }
+
+  test("undefined non terminal (1)") {
+    object SimpleArithmetic extends LanguageSpec[Int, Token]:
+      // Symbol objects
+      val expr = NonTerminal[Int]
+      val undef = NonTerminal[Int]
+
+      val intLit = Terminal[Token.IntLit]
+
+      override val start = expr
+      override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
+
+      (expr ::= intLit) { _.value }
+      (expr ::= undef) { identity }
+
+    val ex = intercept[UndefinedNonTerminalException] {
+      val terminals = SimpleArithmetic.terminals
+    }
+    assert(ex.getMessage().startsWith("Missing productions for non terminal"))
+  }
+
+  test("undefined non terminals (several)") {
+    object SimpleArithmetic extends LanguageSpec[Int, Token]:
+      // Symbol objects
+      val expr = NonTerminal[Int]
+
+      val undef1 = NonTerminal[Int]
+      val undef2 = NonTerminal[Int]
+      val undef3 = NonTerminal[Int]
+
+      val intLit = Terminal[Token.IntLit]
+
+      override val start = expr
+      override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
+
+      (expr ::= intLit) { _.value }
+      (expr ::= (undef1, undef2, undef3) ) { (u1,u2,u3) => u1 + u2 + u3 }
+
+    val ex = intercept[UndefinedNonTerminalException] {
+      val terminals = SimpleArithmetic.terminals
+    }
+    assertEquals(ex.nonTerminals, Set(SimpleArithmetic.undef1, SimpleArithmetic.undef2, SimpleArithmetic.undef3))
+    assert(ex.getMessage().endsWith(" were used without productions"))
+  }
+
+
 }
