@@ -19,7 +19,7 @@ inline def toSeqFn[ST, T](inline fn: T => ST): Seq[ST] => ST =
   (args: Seq[ST]) =>
     fn(args.head.asInstanceOf[T])
 
-/** Gets the ordinal value, and name of an enum case from its type.
+/** Gets the ordinal value and name of an enum case from its type.
  *  This macro abuses the implementation of Enums, using that
  *  when cases are parameterized, 'ordinal' is implemented as
  *  def ordinal = IntConstant //Actually a Literal with an IntConstant */

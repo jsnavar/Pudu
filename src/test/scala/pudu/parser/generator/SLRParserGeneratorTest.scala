@@ -114,9 +114,10 @@ class SLRParserGeneratorTest extends munit.FunSuite {
       (expr ::= (expr, plus, expr)) { (l, _, r) => l + r }
       (expr ::= (expr, times, expr)) { (l, _, r) => l * r }
 
-    intercept[ShiftReduceConflictException[_,_]] {
+    val ex = intercept[ShiftReduceConflictException[_,_]] {
       val parser = SLRParserGenerator(Arithmetic).parser
     }
+    assert(ex.getMessage().startsWith("SR conflict:"))
   }
 
   test("Precedence rule without terminal") {
@@ -230,10 +231,9 @@ class SLRParserGeneratorTest extends munit.FunSuite {
       (expr ::= intLit) { _.value }
       (expr ::= (expr, plus, intLit)) { (l,_,r) => l + r.value }
       (expr ::= (expr, plus, intLit)) { (l,_,r) => l * r.value }
-    intercept[ReduceReduceConflictException[_,_]] {
+    val ex = intercept[ReduceReduceConflictException[_,_]] {
       val parser = SLRParserGenerator(Arithmetic).parser
     }
-
+    assert(ex.getMessage().startsWith("RR conflict"))
   }
-
 }

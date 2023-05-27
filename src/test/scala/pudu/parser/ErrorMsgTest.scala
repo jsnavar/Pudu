@@ -22,6 +22,18 @@ class ErrorMsgTest extends munit.FunSuite {
 
   val parser = SLRParserGenerator(SimpleArithmetic).parser
 
+  test("expected string (empty)") {
+    assertEquals(expectedStr(Nil), "nothing (??)")
+  }
+  test("expected string (1)") {
+    val testString = "string"
+    assertEquals(expectedStr(Seq(testString)), testString)
+  }
+  test("expected string (3)") {
+    val strings = Seq("1", "2", "3")
+    assertEquals(expectedStr(strings), "any of <1,2,3>")
+  }
+
   test("syntax error 1") {
     val input = "2 + * 3"
     val lexer = ArithmeticLexer.lexer(input)

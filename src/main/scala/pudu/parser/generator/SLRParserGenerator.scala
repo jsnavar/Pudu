@@ -67,7 +67,7 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
     yield (state, terminal, item.rule)
     /* Then, we group that tuples into ((state, terminal), rule), ensuring
      * that only tuple exists for each pair (state, terminal) */
-    reduceByCases.groupMap(t => (t._1, t._2))(_._3)
+    reduceByCases.groupMap(t => (t._1, t._2))(_._3).view
       .mapValues { rules =>
         if rules.size > 1 then throw ReduceReduceConflictException(rules)
         rules.head
@@ -108,7 +108,6 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
     val (partialActionTable, gotoTable) = lr0Automaton.foldLeft((reduce, Map.empty))(updateTables)
 
     // add accept condition
-    val startState = closure(Set(augmentedRule.toItem))
     val acceptState = lr0Automaton(startState, lang.start)
     val acceptEntry: ActionTableEntry = acceptOn(acceptState)
 

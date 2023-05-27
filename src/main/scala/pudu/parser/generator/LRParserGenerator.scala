@@ -5,15 +5,15 @@ import pudu.parser._
 
 /** Items are rules with a dot somewhere in the right side. This is represented with two Seq, for before
  *  and after the dot */
-case class Item[T,ST](left: NonTerminal[T], before: Seq[Symbol], after: Seq[Symbol], rule: Rule[T,ST]):
+case class Item[Tree,Token](left: NonTerminal[Tree], before: Seq[Symbol], after: Seq[Symbol], rule: Rule[Tree,Token]):
   /** shifts the dot one place to the right. Caller must ensure that 'after' is not empty before calling */
   def shift = Item(left, before :+ after.head, after.tail, rule)
   override def toString =
     def sp[T](seq: Seq[T]) = seq.mkString(" ")
     s"$left ::= ${sp(before)} · ${sp(after)}"
 
-extension[T,ST] (rule: Rule[T,ST])
-  def toItem: Item[T,ST] = Item(rule.left, Seq.empty[Symbol], rule.right, rule)
+extension[Tree,Token] (rule: Rule[Tree,Token])
+  def toItem: Item[Tree,Token] = Item(rule.left, Seq.empty[Symbol], rule.right, rule)
 
 /** Base class for LR parser generators (SLR, LR(1), LALR) */
 abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[Tree,Token]) extends ParserGenerator[Tree, Token]:
@@ -33,7 +33,6 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
 
   val terminals = lang.terminals + eof
   val nonTerminals = lang.nonTerminals + startSymbol
-  val symbols = terminals ++ nonTerminals
 
   def isTerminal(symbol: Symbol) = terminals.contains(symbol)
   def isNonTerminal(symbol: Symbol) = nonTerminals.contains(symbol)
@@ -87,11 +86,6 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     // Start from the augmented rule ( S' -> S )
     val startState = closure(Set(augmentedRule.toItem))
     computeAutomaton(Map.empty, Set.empty, Set(startState))
-
-  /** Given map: Map[K, Set[V]], key: K and value: V, returns a new map with 'value'
-   *  added to map(key) */
-  extension[K, V] (map: Map[K, Set[V]])
-    def addToValues(key: K, value: V) = map + (key -> (map.getOrElse(key, Set.empty) + value))
 
   /** Given a set of pairs 'current: Set[(L, R)]', and a graph 'edges: Set[(L, L)]',
    *  this function computes:
