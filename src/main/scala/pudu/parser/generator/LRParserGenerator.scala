@@ -22,6 +22,12 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
   /** A state is just a set of Items. This may be changed in the future */
   type State = Set[ItemT]
 
+  /* (StateIdx, TokenOrdinal) -> Action */
+  type ActionTable = Map[(Int,Int), SRAction]
+
+  /* (StateIdx, NonTerminal) -> ToStateIdx */
+  type GotoTable = Map[(Int,Symbol), Int]
+
   /* Grammar is augmented with a new start symbol */
   val startSymbol = NonTerminal[Tree]("S'")
   val eof: Terminal[Token] = lang.eof
@@ -134,24 +140,27 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     groupPairs(lfp(edges, startPairs))
 
   /** LR parsing algorithm */
-  def lrParse(action: Map[(Int, Int), SRAction], goto: Map[(Int, Symbol), Int])(input: Iterator[Token]): Either[ErrorMsg, Tree] =
+  def lrParse(action: ActionTable, goto: GotoTable)(input: Iterator[Token]): Either[ErrorMsg, Tree] =
     def expectedTokens(state: Int) = action
         .keys.filter(_._1 == state) //tokens with a valid action table entry
         .map(_._2) //get ordinal values
         .map(tokenNames) //to names
 
+    /* If input.hasNext, calls parsingImpl with the next token and stacks newStates and newStack,
+     * otherwise returns Left(errorMsg) */
+    def shiftInput(newStates: => Seq[Int], newStack: => Seq[Tree|Token])(errorMsg: => ErrorMsg) =
+      input.nextOption() match
+        case Some(nextToken) => parsingImpl(nextToken, newStates, newStack)
+        case None => Left(errorMsg)
+
     /** 'token' is the next token to be processed, 'states' the parsing states stack, and 'stack' the semantic
      *  actions stack */
     def parsingImpl(token: Token, states: Seq[Int], stack: Seq[Tree|Token]): Either[ErrorMsg, Tree] =
-      // Check the SR action from the action table
       val state = states.head
       action.getOrElse((state, token.ordinal), Error) match
         case Shift(to) =>
-          input.nextOption() match
-            case Some(nextToken) =>
-              parsingImpl(nextToken, to +: states, token +: stack)
-            case None =>
-              Left(InputEndedUnexpectedly(expectedTokens(state)))
+          // if input.hasNext, add 'to' to 'states', and push the current token to 'stack'.
+          shiftInput(to +: states, token +: stack)(InputEndedUnexpectedly(expectedTokens(state)))
         case Reduce(ruleAny) =>
           val rule = ruleAny.asInstanceOf[RuleT]
           val updatedStates = states.drop(rule.arity)  // drops the top states from the 'states' stack
@@ -163,8 +172,5 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
         case Error =>
           if token.ordinal == error.ordinal then Left(LexError(token))
           else Left(SyntaxError(token, tokenNames(token.ordinal), expectedTokens(state)))
-    input.nextOption() match
-      case Some(nextToken) =>
-        parsingImpl(nextToken, Seq(0), Seq.empty)
-      case None =>
-        Left(EmptyInputError)
+    // start from the initial state with empty semantic stack. If the input is empty generates an EmptyInputError
+    shiftInput(Seq(0), Seq.empty)(EmptyInputError)

@@ -12,11 +12,9 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
 
   // ((stateIndex, tokenOrdinal), Action)
   type ActionTableEntry = ((Int, Int), SRAction)
-  type ActionTable = Map[(Int,Int), SRAction]
 
   // ((stateIndex, nonTerminalSymbol), stateIndex)
   type GotoTableEntry = ((Int, Symbol), Int)
-  type GotoTable = Map[(Int,Symbol), Int]
 
   /** builds the action table key */
   def actionTableKey(from: State, terminal: Terminal[Token]) =

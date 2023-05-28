@@ -37,6 +37,21 @@ class ErrorMsgTest extends munit.FunSuite {
     assertEquals(expectedStr(strings), "any of <1,2,3>")
   }
 
+  test("token position") {
+    enum TestToken:
+      case Pos(p: Int)
+
+    val posStr = tokenPosition(TestToken.Pos(1)).get.toString
+    assertEquals(posStr, "1")
+  }
+
+  test("lex error msg with position") {
+    enum TestToken:
+      case ERROR(p: Int)
+    val lexError = LexError(TestToken.ERROR(10))
+    assertEquals(lexError.msg, "Lexical error at: 10")
+  }
+
   test("syntax error 1") {
     val input = "2 + * 3"
     val lexer = ArithmeticLexer.lexer(input)
