@@ -11,6 +11,6 @@ lazy val root = project
     scalaVersion := scala3Version,
     githubOwner := "jsnavar",
     githubRepository := "Pudu",
-
+    jacocoReportSettings := JacocoReportSettings().withFormats(JacocoReportFormats.ScalaHTML).withFormats(JacocoReportFormats.XML),
     libraryDependencies += "org.scalameta" %% "munit" % "0.7.29" % Test
   )
