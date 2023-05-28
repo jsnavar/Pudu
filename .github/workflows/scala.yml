@@ -36,4 +36,7 @@ jobs:
     - name: Coveralls
       uses: coverallsapp/github-action@v2
       with:
-        debug: true
+        file: '/home/runner/work/Pudu/Pudu/target/scala-3.2.2/jacoco/data/jacoco.exec'
+        format: 'jacoco'
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        git-branch: main
