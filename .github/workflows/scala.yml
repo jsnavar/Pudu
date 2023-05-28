@@ -37,3 +37,4 @@ jobs:
       uses: coverallsapp/github-action@v2
       with:
         format: 'jacoco'
+        base-path: '/home/runner/work/Pudu/Pudu/target/scala-3.2.2/jacoco/report'
