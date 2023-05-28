@@ -5,6 +5,9 @@ class ErrorMsgTest extends munit.FunSuite {
   case class Position(line: Int, col: Int):
     override def toString = s"($line, $col)"
 
+  extension[T] (either: Either[ErrorMsg, T])
+    def getError: ErrorMsg = either.swap.toOption.get
+
   enum NoPos:
     case Case1()
     case Case2(str: String)
@@ -40,7 +43,7 @@ class ErrorMsgTest extends munit.FunSuite {
     val result = parser(lexer)
 
     assert(result.isLeft)
-    val error: ErrorMsg = result.left.get
+    val error: ErrorMsg = result.getError
     val msg = error.msg.span(_ != '<')
     assertEquals(msg.head, "Syntax error. Found Times, expected any of ")
     // expected tokens are not sorted, so we compare as sets
@@ -54,7 +57,7 @@ class ErrorMsgTest extends munit.FunSuite {
     val result = parser(lexer)
 
     assert(result.isLeft)
-    val error: ErrorMsg = result.left.get
+    val error: ErrorMsg = result.getError
     val msg = "Input ended unexpectedly."
     assertEquals(error.msg.take(msg.size), msg)
   }
@@ -65,7 +68,7 @@ class ErrorMsgTest extends munit.FunSuite {
     val result = parser(lexer)
 
     assert(result.isLeft)
-    val error: ErrorMsg = result.left.get
+    val error: ErrorMsg = result.getError
     assertEquals(error.msg, "Input is empty!")
   }
 
@@ -75,7 +78,7 @@ class ErrorMsgTest extends munit.FunSuite {
     val result = parser(lexer)
 
     assert(result.isLeft)
-    val error: ErrorMsg = result.left.get
+    val error: ErrorMsg = result.getError
     assertEquals(error.msg, "Lexical error.")
   }
 }

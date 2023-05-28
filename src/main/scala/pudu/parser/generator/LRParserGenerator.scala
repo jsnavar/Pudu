@@ -73,7 +73,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
 
   /** Computes the LR0 automaton, i.e. a map that given a state and a symbol, returns
    *  the next state */
-  lazy val lr0Automaton: Map[(State, Symbol), State] =
+  val lr0Automaton: Map[(State, Symbol), State] =
     def computeAutomaton(current: Map[(State, Symbol), State], computed: Set[State], frontier: Set[State]): Map[(State, Symbol), State] =
       // Compute goto for each state in frontier, getting a Map[(State, Symbol), State] with all the results
       val newEdges = frontier.flatMap(goto)
@@ -109,7 +109,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
 
   /** Pudu does not support null productions, so FIRST reduces to reachability
    *  in the graph given by the first symbol of each production. */
-  lazy val first: Map[Symbol, Set[Terminal[Token]]] =
+  val first: Map[Symbol, Set[Terminal[Token]]] =
     val edges: Set[SymPair] = rules.map(rule => rule.left -> rule.right.head)
     /* The LFP starts from {(t,t)| t is a terminal} */
     val start = terminals.map(t => t -> t.asInstanceOf[Terminal[Token]])
@@ -118,7 +118,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
   /** FOLLOW is also computed as reachability but with reversed edges: from the last
    *  symbol of the rhs to the left symbol. This follows the definition,
    *  because for each production X ::= ...Z, FOLLOW(X)\subseteq FOLLOW(Z) */
-  lazy val follow: Map[Symbol, Set[Terminal[Token]]] =
+  val follow: Map[Symbol, Set[Terminal[Token]]] =
     val edges: Set[SymPair] = rules.filter(rule => isNonTerminal(rule.right.last))
       .map(rule => rule.right.last -> rule.left)
     /* the starting set is
@@ -138,25 +138,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     def expectedTokens(state: Int) = action
         .keys.filter(_._1 == state) //tokens with a valid action table entry
         .map(_._2) //get ordinal values
-        .map(tokenNames) //names
-
-    /** Tries to get the next token. */
-    def nextToken(last: Token, state: Int): Either[ErrorMsg, Token] =
-      if !input.hasNext then
-        val expected = expectedTokens(state)
-        Left(InputEndedUnexpectedly(expected))
-      else
-        val tok = input.next
-        if tok.ordinal == error.ordinal then
-          // Lexical error
-          Left(LexError(tok))
-        else
-          Right(tok)
-    def syntaxError(token: Token, state: Int): ErrorMsg =
-      val expected = expectedTokens(state)
-      if token.ordinal == eof.ordinal then InputEndedUnexpectedly(expected)
-      else if token.ordinal == error.ordinal then LexError(token)
-      else SyntaxError(token, tokenNames(token.ordinal), expected)
+        .map(tokenNames) //to names
 
     /** 'token' is the next token to be processed, 'states' the parsing states stack, and 'stack' the semantic
      *  actions stack */
@@ -165,22 +147,24 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
       val state = states.head
       action.getOrElse((state, token.ordinal), Error) match
         case Shift(to) =>
-          nextToken(token, state).flatMap {
-            /* If nextToken succeeds, calls parsingImpl recursively with the next token and updated stacks.
-             * If nextToken fails, then it just forwards the ErrorMsg */
-            parsingImpl(_, to +: states, token +: stack)
-          }
+          input.nextOption() match
+            case Some(nextToken) =>
+              parsingImpl(nextToken, to +: states, token +: stack)
+            case None =>
+              Left(InputEndedUnexpectedly(expectedTokens(state)))
         case Reduce(ruleAny) =>
           val rule = ruleAny.asInstanceOf[RuleT]
           val updatedStates = states.drop(rule.arity)  // drops the top states from the 'states' stack
-          val to = goto(updatedStates.head, rule.left) // get the next state from the goto table
-          parsingImpl(token, to +: updatedStates, rule.reduce(stack)) // Recursive call, with the same token
+          val to = goto(updatedStates.head, rule.left) // gets the next state from the goto table
+          parsingImpl(token, to +: updatedStates, rule.reduce(stack)) // Recursive call with the same token
         case Accept =>
           // the final value is the top of 'stack'
           Right(stack.head.asInstanceOf[Tree])
         case Error =>
-          Left(syntaxError(token, states.head))
-    if input.hasNext then
-      parsingImpl(input.next, Seq(0), Seq.empty)
-    else
-      Left(EmptyInputError)
+          if token.ordinal == error.ordinal then Left(LexError(token))
+          else Left(SyntaxError(token, tokenNames(token.ordinal), expectedTokens(state)))
+    input.nextOption() match
+      case Some(nextToken) =>
+        parsingImpl(nextToken, Seq(0), Seq.empty)
+      case None =>
+        Left(EmptyInputError)

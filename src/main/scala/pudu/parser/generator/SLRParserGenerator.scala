@@ -56,7 +56,7 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
   /** For each state 'state', compute pairs ((state, terminal), rule),
    *  where rule is the rule to reduce by given the pair (state, terminal).
    *  Throws a ReduceReduceConflictException in case of a RR conflict. */
-  lazy val reduceActions: Map[(State, Terminal[Token]), RuleT] =
+  val reduceActions: Map[(State, Terminal[Token]), RuleT] =
     /* First, we generate tuples (state, terminal, rule), such that there exists
      * an item X -> \alpha\cdot in state, and terminal\in FOLLOW(X). */
     val reduceByCases = for
@@ -73,7 +73,7 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
         rules.head
       }.toMap
 
-  lazy val (actionTable, gotoTable) =
+  val (actionTable, gotoTable) =
     type LRTables = (ActionTable, GotoTable)
 
     /* Update LRTables for a given LR0 automaton edge */
