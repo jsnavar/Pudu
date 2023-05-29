@@ -171,6 +171,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
           Right(stack.head.asInstanceOf[Tree])
         case Error =>
           if token.ordinal == error.ordinal then Left(LexError(token))
+          else if token.ordinal == eof.ordinal then Left(InputEndedUnexpectedly(expectedTokens(state)))
           else Left(SyntaxError(token, tokenNames(token.ordinal), expectedTokens(state)))
     // start from the initial state with empty semantic stack. If the input is empty generates an EmptyInputError
     shiftInput(Seq(0), Seq.empty)(EmptyInputError)

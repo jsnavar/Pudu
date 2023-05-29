@@ -78,9 +78,7 @@ class ErrorMsgTest extends munit.FunSuite {
   }
 
   test("Empty input") {
-    val input = " "
-    val lexer = ArithmeticLexer.lexer(input)
-    val result = parser(lexer)
+    val result = parser(Iterator.empty[Token])
 
     assert(result.isLeft)
     val error: ErrorMsg = result.getError
