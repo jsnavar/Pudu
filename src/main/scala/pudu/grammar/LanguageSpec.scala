@@ -9,9 +9,6 @@ package pudu.grammar
  *
  *  Types Tree and Token refer to the types used for NonTerminal and Terminal respectively */
 abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum]:
-  /* Semantic actions in shift-reduce parsers are computed using a stack, which holds either
-   * tokens, or objects of type <: Tree. Here, we represent that with the union type StackTpe */
-  type StackTpe = Tree | Token
 
   // Rules are collected into a private mutable set, which is later "fixed" to the immutable set 'rules'
   private val rulesSet = scala.collection.mutable.HashSet[Rule[Tree,Token]]()
@@ -24,7 +21,7 @@ abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum]:
   lazy val terminals =
     val possibleTerminals = rules.flatMap(_.right) -- nonTerminals
     val undefNonTerminals = possibleTerminals.filter(_.isInstanceOf[NonTerminal[_]])
-    if ! undefNonTerminals.isEmpty then
+    if !undefNonTerminals.isEmpty then
       throw UndefinedNonTerminalException(undefNonTerminals)
     possibleTerminals
 

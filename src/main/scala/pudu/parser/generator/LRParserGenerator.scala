@@ -32,7 +32,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
   val startSymbol = NonTerminal[Tree]("S'")
   val eof: Terminal[Token] = lang.eof
   val error: Terminal[Token] = lang.error // For lexer errors
-  val augmentedRule: RuleT = Rule(startSymbol, Seq(lang.start), _.head)
+  val augmentedRule: RuleT = Rule(startSymbol, Seq(lang.start), _.head.asInstanceOf[Tree])
 
   val rules = lang.rules + augmentedRule
   val precedence = lang.precedence
@@ -148,7 +148,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
 
     /* If input.hasNext, calls parsingImpl with the next token and stacks newStates and newStack,
      * otherwise returns Left(errorMsg) */
-    def shiftInput(newStates: => Seq[Int], newStack: => Seq[Tree|Token])(errorMsg: => ErrorMsg) =
+    def shiftToken(newStates: => Seq[Int], newStack: => Seq[Tree|Token])(errorMsg: => ErrorMsg) =
       input.nextOption() match
         case Some(nextToken) => parsingImpl(nextToken, newStates, newStack)
         case None => Left(errorMsg)
@@ -160,12 +160,17 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
       action.getOrElse((state, token.ordinal), Error) match
         case Shift(to) =>
           // if input.hasNext, add 'to' to 'states', and push the current token to 'stack'.
-          shiftInput(to +: states, token +: stack)(InputEndedUnexpectedly(expectedTokens(state)))
+          shiftToken(to +: states, token +: stack)(InputEndedUnexpectedly(expectedTokens(state)))
         case Reduce(ruleAny) =>
           val rule = ruleAny.asInstanceOf[RuleT]
-          val updatedStates = states.drop(rule.arity)  // drops the top states from the 'states' stack
-          val to = goto(updatedStates.head, rule.left) // gets the next state from the goto table
-          parsingImpl(token, to +: updatedStates, rule.reduce(stack)) // Recursive call with the same token
+
+          val clearedStates = states.drop(rule.arity)  // drops the top states from the 'states' stack
+          val toState = goto(clearedStates.head, rule.left) // gets the next state from the goto table
+          val updatedStates = toState +: clearedStates
+
+          val updatedStack = rule.action(stack) +: stack.drop(rule.arity)
+
+          parsingImpl(token, updatedStates, updatedStack) // Recursive call with the same token
         case Accept =>
           // the final value is the top of 'stack'
           Right(stack.head.asInstanceOf[Tree])
@@ -174,4 +179,4 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
           else if token.ordinal == eof.ordinal then Left(InputEndedUnexpectedly(expectedTokens(state)))
           else Left(SyntaxError(token, tokenNames(token.ordinal), expectedTokens(state)))
     // start from the initial state with empty semantic stack. If the input is empty generates an EmptyInputError
-    shiftInput(Seq(0), Seq.empty)(EmptyInputError)
+    shiftToken(Seq(0), Seq.empty)(EmptyInputError)
