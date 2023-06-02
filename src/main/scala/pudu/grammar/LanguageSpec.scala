@@ -25,7 +25,7 @@ abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum]:
       throw UndefinedNonTerminalException(undefNonTerminals)
     possibleTerminals
 
-  val start: NonTerminal[Tree]
+  val start: Symbol
   val eof: Terminal[Token]
   val error: Terminal[Token]
   val precedence: Precedence = Precedence.empty
@@ -36,12 +36,12 @@ abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum]:
     {{{    (left ::= (r1, r2, r3)) { (v1, v2 v3) => ... }      }}}
     * where the types of v1, v2, and v3 are inferred from 'r1', 'r2', and 'r3' */
   extension [R <: Tree] (left: NonTerminal[R])
-    protected inline def ::= [Tup <: NonEmptyTuple] (inline right: Tup)(inline fn: TupSymData[Tup] => R)(using Tup <:< SymTuple[Tree, Token, Tup]): Unit =
+    protected inline def ::= [Tup <: NonEmptyTuple] (inline right: Tup)(inline fn: TupSymData[Tup] => R)(using IsBoundedTuple[Tree, Token, Tup]): Unit =
       rulesSet += Rule(left,
                        right.toList.asInstanceOf[Seq[Symbol]], // this cast is safe by the <:< clause above
                        toSeqFn(right.size, fn))
     /* This is defined to allow syntax (left ::= right) for unit productions, instead of (left ::= (right) */
-    protected inline def ::= [T <: Symbol] (inline right: T)(inline fn: SymData[T] => R)(using IsBounded[Tree, Token, T] =:= true): Unit =
+    protected inline def ::= [T <: Symbol] (inline right: T)(inline fn: SymData[T] => R)(using IsBounded[Tree, Token, T]): Unit =
       rulesSet += Rule(left, Seq(right), toSeqFn(fn))
 
 case class UndefinedNonTerminalException(nonTerminals: Set[Symbol]) extends Exception:

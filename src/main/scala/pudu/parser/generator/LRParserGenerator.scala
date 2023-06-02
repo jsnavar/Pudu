@@ -5,7 +5,7 @@ import pudu.parser._
 
 /** Items are rules with a dot somewhere in the right side. This is represented with two Seq, for before
  *  and after the dot */
-case class Item[Tree,Token](left: NonTerminal[Tree], before: Seq[Symbol], after: Seq[Symbol], rule: Rule[Tree,Token]):
+case class Item[Tree,Token](left: Symbol, before: Seq[Symbol], after: Seq[Symbol], rule: Rule[Tree,Token]):
   /** shifts the dot one place to the right. Caller must ensure that 'after' is not empty before calling */
   def shift = Item(left, before :+ after.head, after.tail, rule)
   override def toString =
