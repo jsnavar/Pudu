@@ -8,18 +8,18 @@ package pudu.grammar
  * This can be proved using that actions in ::= are type checked: each argument match the SymData of the
  * corresponding symbol, and the return type matches the SymData of the NonTerminal in the lhs; and when the
  * parser reduces by a production, then the top of the stack has elements corresponding to the rhs of that production. */
-inline def toSeqFn[ST, Tup <: Tuple](inline size: Int, inline fn: Tup => ST): Seq[ST] => ST =
-  (args: Seq[ST]) =>
+inline def toSeqFn[ArgsType, RetType, Tup <: Tuple](inline size: Int, inline fn: Tup => RetType): Seq[ArgsType] => RetType =
+  (args: Seq[ArgsType]) =>
     val top = args.take(size).reverse.toArray[Any]
     val fnArgs = Tuple.fromArray(top).asInstanceOf[Tup]
     fn(fnArgs)
 
 /* special case for unit productions */
-inline def toSeqFn[ST, T](inline fn: T => ST): Seq[ST] => ST =
-  (args: Seq[ST]) =>
+inline def toSeqFn[ArgsType, RetType, T](inline fn: T => RetType): Seq[ArgsType] => RetType =
+  (args: Seq[ArgsType]) =>
     fn(args.head.asInstanceOf[T])
 
-/** Gets the ordinal value, and name of an enum case from its type.
+/** Gets the ordinal value and name of an enum case from its type.
  *  This macro abuses the implementation of Enums, using that
  *  when cases are parameterized, 'ordinal' is implemented as
  *  def ordinal = IntConstant //Actually a Literal with an IntConstant */
@@ -37,4 +37,3 @@ def enumMetadataImpl[T: Type](using Quotes) =
     case None => throw Exception("Tree not found. Please compile with option -Yretain-trees")
     case Some(x) => x.asExprOf[Int]
   Expr.ofTuple(ordinal, name)
-

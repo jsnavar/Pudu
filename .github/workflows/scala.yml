@@ -32,3 +32,11 @@ jobs:
         cache: 'sbt'
     - name: Run tests
       run: sbt test
+
+#    - name: Coveralls
+#      uses: coverallsapp/github-action@v2
+#      with:
+#        file: '/home/runner/work/Pudu/Pudu/target/scala-3.2.2/jacoco/report/jacoco.xml'
+#        format: 'jacoco'
+#        github-token: ${{ secrets.GITHUB_TOKEN }}
+#        git-branch: main

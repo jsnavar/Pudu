@@ -12,11 +12,9 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
 
   // ((stateIndex, tokenOrdinal), Action)
   type ActionTableEntry = ((Int, Int), SRAction)
-  type ActionTable = Map[(Int,Int), SRAction]
 
   // ((stateIndex, nonTerminalSymbol), stateIndex)
   type GotoTableEntry = ((Int, Symbol), Int)
-  type GotoTable = Map[(Int,Symbol), Int]
 
   /** builds the action table key */
   def actionTableKey(from: State, terminal: Terminal[Token]) =
@@ -28,17 +26,17 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
   def shiftTo(from: State, terminal: Terminal[Token], to: State): ActionTableEntry =
     val key = actionTableKey(from, terminal)
     val toIdx = indexedStates(to)
-    (key, Shift(toIdx))
+    (key, SRAction.Shift(toIdx))
 
   /** Action table entry for reduce actions */
   def reduceBy(from: State, terminal: Terminal[Token], rule: RuleT): ActionTableEntry =
     val key = actionTableKey(from, terminal)
-    (key, Reduce(rule))
+    (key, SRAction.Reduce(rule))
 
   /** Action table entry for accept action */
   def acceptOn(acceptState: State): ActionTableEntry =
     val key = actionTableKey(acceptState, eof)
-    (key, Accept)
+    (key, SRAction.Accept)
 
   /** uses precedence to solve shift reduce conflicts. Default is to shift, in
    *  accordance to tradition (https://www.gnu.org/software/bison/manual/html_node/How-Precedence.html) */
@@ -56,7 +54,7 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
   /** For each state 'state', compute pairs ((state, terminal), rule),
    *  where rule is the rule to reduce by given the pair (state, terminal).
    *  Throws a ReduceReduceConflictException in case of a RR conflict. */
-  lazy val reduceActions: Map[(State, Terminal[Token]), RuleT] =
+  val reduceActions: Map[(State, Terminal[Token]), RuleT] =
     /* First, we generate tuples (state, terminal, rule), such that there exists
      * an item X -> \alpha\cdot in state, and terminal\in FOLLOW(X). */
     val reduceByCases = for
@@ -67,13 +65,13 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
     yield (state, terminal, item.rule)
     /* Then, we group that tuples into ((state, terminal), rule), ensuring
      * that only tuple exists for each pair (state, terminal) */
-    reduceByCases.groupMap(t => (t._1, t._2))(_._3)
+    reduceByCases.groupMap(t => (t._1, t._2))(_._3).view
       .mapValues { rules =>
         if rules.size > 1 then throw ReduceReduceConflictException(rules)
         rules.head
       }.toMap
 
-  lazy val (actionTable, gotoTable) =
+  val (actionTable, gotoTable) =
     type LRTables = (ActionTable, GotoTable)
 
     /* Update LRTables for a given LR0 automaton edge */
@@ -108,7 +106,6 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
     val (partialActionTable, gotoTable) = lr0Automaton.foldLeft((reduce, Map.empty))(updateTables)
 
     // add accept condition
-    val startState = closure(Set(augmentedRule.toItem))
     val acceptState = lr0Automaton(startState, lang.start)
     val acceptEntry: ActionTableEntry = acceptOn(acceptState)
 

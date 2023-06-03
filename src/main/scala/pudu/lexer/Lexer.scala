@@ -6,33 +6,33 @@ import scala.util.matching._
 abstract class Lexer[Token <: reflect.Enum]:
   /* Regular expressions can generate a Token or be ignored (whitespace, comments, ...).
    * This is represented with two case classes: TokenCase and IgnoreCase. */
-  sealed trait LexerCase:
+  private sealed trait LexerCase:
     def regex: Regex
-  case class TokenCase(regex: Regex, fn: String => Token) extends LexerCase
+
+  private case class TokenCase(regex: Regex, fn: String => Token) extends LexerCase
   /* The function in IgnoreCase can be used for side effects, like printing/logging info,
    * or updating position data */
-  case class IgnoreCase(regex: Regex, fn: String => Unit) extends LexerCase
-
-  case class Match(result: Regex.Match, entry: LexerCase)
+  private case class IgnoreCase(regex: Regex, fn: String => Unit) extends LexerCase
 
   private var entries = Seq.empty[LexerCase]
 
-  def eof: Token
+  /* method called on end of file. It is a def, because the EOF token could depend
+   * on the state of the lexer (for example, for position data) */
+  protected def eof: Token
 
   /* Register the LexerCases into 'entries' */
-  extension (str: String)
-    // TokenCase with explicit function
+  extension (pattern: String)
     protected def apply(fn: String => Token) =
-      entries = entries :+ TokenCase(str.r, fn)
-    // TokenCase with constant function
+      entries = entries :+ TokenCase(pattern.r, fn)
     protected def apply(token: Token) =
-      entries = entries :+ TokenCase(str.r, Function.const(token))
-    // IgnoreCase with explicit function
+      entries = entries :+ TokenCase(pattern.r, _ => token)
     protected def ignore(fn: String => Unit) =
-      entries = entries :+ IgnoreCase(str.r, fn)
-    // IgnoreCase with constant function
+      entries = entries :+ IgnoreCase(pattern.r, fn)
     protected def ignore =
-      entries = entries :+ IgnoreCase(str.r, Function.const(()))
+      entries = entries :+ IgnoreCase(pattern.r, _ => ())
+
+  /* Internal representation of a match. */
+  private case class Match(result: Regex.Match, entry: LexerCase)
 
   /** Returns the next prefix Match.
    *  If there is more than one, it returns the longest, and if
@@ -45,31 +45,14 @@ abstract class Lexer[Token <: reflect.Enum]:
       .collect { case (Some(x), entry) => Match(x, entry) }
       .maxByOption(_.result.end)
 
-  /** Returns the next token, by calling the previous method until finding
-   *  a TokenCase, and then using TokenCase.fn to generate the Token instance */
-  private def nextToken(input: CharSequence): Option[(Token, CharSequence)] =
-    nextMatch(input).flatMap{ 
-      case Match(result, TokenCase(_, fn)) =>
-        Some((fn(result.matched), result.after))
-      case Match(result, IgnoreCase(_, fn)) =>
-        fn(result.matched)
-        nextToken(result.after)
-    }
-
   def lexer(input: CharSequence): Iterator[Token] =
-    var remainder = input
-    val first = new Iterator[Token] {
-      var curToken = nextToken(input)
-      def hasNext = remainder.length() > 0 && curToken.isDefined
-
-      def next(): Token =
-        val (token, after) = curToken.get
-        remainder = after
-        curToken = nextToken(remainder)
-        token
-    }
-    def endOfFile = 
-      if remainder.length == 0 then Seq(eof)
-      else Seq.empty[Token]
-
-    first.concat(endOfFile)
+    Iterator.iterate(nextMatch(input)) {
+      _.flatMap { case Match(m, _) => nextMatch(m.after) }}
+        .takeWhile(_.isDefined)
+        .collect {
+          // for each match, generate a Some(Token) if it is a TokenCase,
+          // or None (after calling the side effects function) if it is an IgnoreCase
+          case Some(Match(m, TokenCase(_, fn))) => Some(fn(m.matched))
+          case Some(Match(m, IgnoreCase(_, fn))) => fn(m.matched) ; None }
+        .collect { case Some(tok) => tok }
+        .concat(Iterator.single(eof))
