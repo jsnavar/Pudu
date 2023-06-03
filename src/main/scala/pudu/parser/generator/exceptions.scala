@@ -8,4 +8,4 @@ class ReduceReduceConflictException[Tree,Token](conflict: Iterable[Rule[Tree,Tok
 
 class ShiftReduceConflictException[Tree,Token](rule: Rule[Tree,Token], symbol: Symbol) extends Exception:
   override def getMessage() =
-    s"SR conflict:\n\tTerminal: $symbol\nRule:$rule"
+    s"SR conflict:\n\tTerminal: $symbol\n\tRule:$rule"

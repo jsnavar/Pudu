@@ -37,4 +37,3 @@ def enumMetadataImpl[T: Type](using Quotes) =
     case None => throw Exception("Tree not found. Please compile with option -Yretain-trees")
     case Some(x) => x.asExprOf[Int]
   Expr.ofTuple(ordinal, name)
-

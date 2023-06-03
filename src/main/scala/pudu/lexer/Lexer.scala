@@ -8,6 +8,7 @@ abstract class Lexer[Token <: reflect.Enum]:
    * This is represented with two case classes: TokenCase and IgnoreCase. */
   private sealed trait LexerCase:
     def regex: Regex
+
   private case class TokenCase(regex: Regex, fn: String => Token) extends LexerCase
   /* The function in IgnoreCase can be used for side effects, like printing/logging info,
    * or updating position data */
@@ -15,20 +16,18 @@ abstract class Lexer[Token <: reflect.Enum]:
 
   private var entries = Seq.empty[LexerCase]
 
+  /* method called on end of file. It is a def, because the EOF token could depend
+   * on the state of the lexer (for example, for position data) */
   protected def eof: Token
 
   /* Register the LexerCases into 'entries' */
   extension (pattern: String)
-    // TokenCase with explicit function
     protected def apply(fn: String => Token) =
       entries = entries :+ TokenCase(pattern.r, fn)
-    // TokenCase with constant function
     protected def apply(token: Token) =
       entries = entries :+ TokenCase(pattern.r, _ => token)
-    // IgnoreCase with explicit function
     protected def ignore(fn: String => Unit) =
       entries = entries :+ IgnoreCase(pattern.r, fn)
-    // IgnoreCase with constant function
     protected def ignore =
       entries = entries :+ IgnoreCase(pattern.r, _ => ())
 
@@ -47,8 +46,8 @@ abstract class Lexer[Token <: reflect.Enum]:
       .maxByOption(_.result.end)
 
   def lexer(input: CharSequence): Iterator[Token] =
-    Iterator.iterate(nextMatch(input)) { _.flatMap {
-      case Match(m, _) => nextMatch(m.after) }} // iterator of Option[Match] with an infinite tail of 'None's
+    Iterator.iterate(nextMatch(input)) {
+      _.flatMap { case Match(m, _) => nextMatch(m.after) }}
         .takeWhile(_.isDefined)
         .collect {
           // for each match, generate a Some(Token) if it is a TokenCase,

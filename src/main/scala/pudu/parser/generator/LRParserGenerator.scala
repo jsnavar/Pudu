@@ -157,6 +157,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
      *  actions stack */
     def parsingImpl(token: Token, states: Seq[Int], stack: Seq[Tree|Token]): Either[ErrorMsg, Tree] =
       import ErrorMsg._
+      import SRAction._
 
       val state = states.head
       action.getOrElse((state, token.ordinal), Error) match

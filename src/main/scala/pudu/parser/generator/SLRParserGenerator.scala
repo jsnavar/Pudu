@@ -26,17 +26,17 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
   def shiftTo(from: State, terminal: Terminal[Token], to: State): ActionTableEntry =
     val key = actionTableKey(from, terminal)
     val toIdx = indexedStates(to)
-    (key, Shift(toIdx))
+    (key, SRAction.Shift(toIdx))
 
   /** Action table entry for reduce actions */
   def reduceBy(from: State, terminal: Terminal[Token], rule: RuleT): ActionTableEntry =
     val key = actionTableKey(from, terminal)
-    (key, Reduce(rule))
+    (key, SRAction.Reduce(rule))
 
   /** Action table entry for accept action */
   def acceptOn(acceptState: State): ActionTableEntry =
     val key = actionTableKey(acceptState, eof)
-    (key, Accept)
+    (key, SRAction.Accept)
 
   /** uses precedence to solve shift reduce conflicts. Default is to shift, in
    *  accordance to tradition (https://www.gnu.org/software/bison/manual/html_node/How-Precedence.html) */
