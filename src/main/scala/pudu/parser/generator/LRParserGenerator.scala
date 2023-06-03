@@ -5,15 +5,15 @@ import pudu.parser._
 
 /** Items are rules with a dot somewhere in the right side. This is represented with two Seq, for before
  *  and after the dot */
-case class Item[Tree,Token](left: Symbol, before: Seq[Symbol], after: Seq[Symbol], rule: Rule[Tree,Token]):
+case class Item[Tree,Token <: reflect.Enum](left: Symbol, before: Seq[Symbol], after: Seq[Symbol], context: Set[Terminal[Token]], rule: Rule[Tree,Token]):
   /** shifts the dot one place to the right. Caller must ensure that 'after' is not empty before calling */
-  def shift = Item(left, before :+ after.head, after.tail, rule)
+  def shift = Item(left, before :+ after.head, after.tail, context, rule)
   override def toString =
     def sp[T](seq: Seq[T]) = seq.mkString(" ")
     s"$left ::= ${sp(before)} · ${sp(after)}"
 
-extension[Tree,Token] (rule: Rule[Tree,Token])
-  def toItem: Item[Tree,Token] = Item(rule.left, Seq.empty[Symbol], rule.right, rule)
+extension[Tree,Token <: reflect.Enum] (rule: Rule[Tree,Token])
+  def toItem: Item[Tree,Token] = Item(rule.left, Seq.empty[Symbol], rule.right, Set.empty, rule)
 
 /** Base class for LR parser generators (SLR, LR(1), LALR) */
 abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[Tree,Token]) extends ParserGenerator[Tree, Token]:
