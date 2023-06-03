@@ -1,48 +1,51 @@
 package pudu.parser
 
-import scala.util.Try
+import scala.util.{Try, Success, Failure}
 
 trait ErrorMsg:
   def msg: String
 
-def expectedStr(expected: Iterable[String]) =
-  if expected.isEmpty then "nothing (??)"
-  else if expected.size == 1 then expected.head.toString
-  else
-    val alternatives = expected.mkString(",")
-    s"any of <$alternatives>"
+object ErrorMsg:
+  /** Syntax Error: Found unexpected token */
+  case class SyntaxError[Token](found: Token, terminalName: String, expected: Iterable[String]) extends ErrorMsg:
+    override def msg: String =
+      val foundStr = tokenToString(found, terminalName)
+      s"Syntax error. Found $foundStr, expected ${expectedStr(expected)}"
 
-/** Syntax Error: Found unexpected token */
-case class SyntaxError[Token](found: Token, terminalName: String, expected: Iterable[String]) extends ErrorMsg:
-  override def msg: String =
-    val foundStr = tokenToString(found, terminalName)
-    s"Syntax error. Found $foundStr, expected ${expectedStr(expected)}"
+  /** Empty Input: This represents an input without any token */
+  object EmptyInputError extends ErrorMsg:
+    override def msg: String = "Input is empty!"
 
-/** Empty Input: This represents an input without any token */
-object EmptyInputError extends ErrorMsg:
-  override def msg: String = "Input is empty!"
+  /** Unexpected eof */
+  case class InputEndedUnexpectedly(expected: Iterable[String]) extends ErrorMsg:
+    override def msg: String =
+      s"Input ended unexpectedly. Expected ${expectedStr(expected)}"
 
-/** Unexpected eof */
-case class InputEndedUnexpectedly(expected: Iterable[String]) extends ErrorMsg:
-  override def msg: String =
-    s"Input ended unexpectedly. Expected ${expectedStr(expected)}"
+  /** Generated whenever the lexer yields an error token */
+  case class LexError[Token](found: Token) extends ErrorMsg:
+    val foundStr: String = Try(found.getClass().getMethod("str").invoke(found)) match
+      case Success(s) => s" '$s'"
+      case Failure(_) => ""
+    override def msg: String =
+      s"Unrecognized input${foundStr}${positionString(found)}"
 
-/** Generated whenever the lexer yields an error token */
-case class LexError[Token](found: Token) extends ErrorMsg:
-  override def msg: String =
-    val positionString = tokenPosition(found).map(pos => s" at: $pos")
-    "Lexical error" + positionString.getOrElse(".")
+  private def expectedStr(expected: Iterable[String]) =
+    if expected.isEmpty then "nothing (??)"
+    else if expected.size == 1 then expected.head.toString
+    else
+      val alternatives = expected.mkString(",")
+      s"any of <$alternatives>"
 
-/** Gets the position of the token. The position is obtained by invoking
- *  a parameterless method named 'p' of the token, if present. */
-def tokenPosition[Token](token: Token): Option[Any] =
-  Try(token.getClass().getMethod("p").invoke(token)).toOption
+  private def positionString[Token](token: Token): String =
+    tokenPosition(token) match
+      case Some(pos) => s" (position: $pos)"
+      case None => ""
 
-/** String representation of a token, with position if defined */
-def tokenToString[Token](token: Token): String =
-  val name = token.getClass().getName().split('$').last
-  tokenToString(token, name)
+  /** Gets the position of the token. The position is obtained by invoking
+   *  a parameterless method named 'p' of the token, if present. */
+  private def tokenPosition[Token](token: Token): Option[Any] =
+    Try(token.getClass().getMethod("p").invoke(token)).toOption
 
-def tokenToString[Token](token: Token, name: String): String =
-  val positionString = tokenPosition(token).map(pos => s" at: $pos")
-  name + positionString.getOrElse("")
+  /** String representation of a token, with position if defined */
+  private def tokenToString[Token](token: Token, name: String): String =
+    name + positionString(token)

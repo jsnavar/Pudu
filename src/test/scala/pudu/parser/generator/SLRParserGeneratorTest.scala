@@ -236,4 +236,44 @@ class SLRParserGeneratorTest extends munit.FunSuite {
     }
     assert(ex.getMessage().startsWith("RR conflict"))
   }
+
+  test("syntax error") {
+    val input = "2 + * 3"
+    val lexer = ArithmeticLexer.lexer(input)
+    val result = parser(lexer)
+
+    assert(result.isLeft)
+    val error: ErrorMsg = result.swap.toOption.get
+    assert(error.isInstanceOf[ErrorMsg.SyntaxError[_]])
+    val syntaxError = error.asInstanceOf[ErrorMsg.SyntaxError[Token]]
+    assertEquals(syntaxError, ErrorMsg.SyntaxError(Token.Times(), "Times", Set("IntLit", "LPar" , "FuncId")))
+  }
+
+  test("unexpected end of input") {
+    val input = "2 + "
+    val lexer = ArithmeticLexer.lexer(input)
+    val result = parser(lexer)
+
+    assert(result.isLeft)
+    val error: ErrorMsg = result.swap.toOption.get
+    assert(error.isInstanceOf[ErrorMsg.InputEndedUnexpectedly])
+  }
+
+  test("Empty input") {
+    val result = parser(Iterator.empty[Token])
+
+    assert(result.isLeft)
+    val error: ErrorMsg = result.swap.toOption.get
+    assertEquals(error, ErrorMsg.EmptyInputError)
+  }
+
+  test("lexical error") {
+    val input = " 2 _ 3"
+    val lexer = ArithmeticLexer.lexer(input)
+    val result = parser(lexer)
+
+    assert(result.isLeft)
+    val error: ErrorMsg = result.swap.toOption.get
+    assertEquals(error, ErrorMsg.LexError(Token.ERROR("_")))
+  }
 }

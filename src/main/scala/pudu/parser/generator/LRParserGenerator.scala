@@ -156,6 +156,8 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     /** 'token' is the next token to be processed, 'states' the parsing states stack, and 'stack' the semantic
      *  actions stack */
     def parsingImpl(token: Token, states: Seq[Int], stack: Seq[Tree|Token]): Either[ErrorMsg, Tree] =
+      import ErrorMsg._
+
       val state = states.head
       action.getOrElse((state, token.ordinal), Error) match
         case Shift(to) =>
@@ -179,4 +181,4 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
           else if token.ordinal == eof.ordinal then Left(InputEndedUnexpectedly(expectedTokens(state)))
           else Left(SyntaxError(token, tokenNames(token.ordinal), expectedTokens(state)))
     // start from the initial state with empty semantic stack. If the input is empty generates an EmptyInputError
-    shiftToken(Seq(0), Seq.empty)(EmptyInputError)
+    shiftToken(Seq(0), Seq.empty)(ErrorMsg.EmptyInputError)
