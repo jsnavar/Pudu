@@ -89,7 +89,7 @@ There, the regex "," only matches the string ",", so the function always returns
 ```
 Method (3) simply ignores the matched string, and method (4) calls `fn` on the ignored string, which can be useful for side effects such as updating positions.
 
-As anticipated above, the lexer needs to know the end of file token, which is declared by overriding the method `def eof: Token`. It is important to note that the lexer generates that token automatically when the input ends, and it should **NOT** be returned by any regular expression.
+As anticipated above, the lexer needs to know the end of file token, which is declared by overriding the method `def eof: Token`. This method is called automatically when the input ends, so it is not necessary to add an explicit rule for it.
 
 Continuing the previous example, the lexer corresponding to `Token` could be:
 ```scala
