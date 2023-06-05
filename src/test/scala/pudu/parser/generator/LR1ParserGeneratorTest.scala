@@ -37,9 +37,9 @@ class LR1ParserGeneratorTest extends munit.FunSuite {
     val lr1 = LR1ParserGenerator(Example)
 
     val ag = lr1.augmentedRule
-    val sr = Example.rules.filter(_.left == Example.ss).head
-    val c1 = Example.rules.filter(r => r.left == Example.cc && r.right.size == 2).head
-    val cd = Example.rules.filter(r => r.left == Example.cc && r.right.size == 1).head
+    val sr = Example.rules.filter(_.left == Example.ss).head // ss ::= cc cc
+    val c1 = Example.rules.filter(r => r.left == Example.cc && r.right.size == 2).head // cc ::= c cc
+    val cd = Example.rules.filter(r => r.left == Example.cc && r.right.size == 1).head // cc ::= d
 
     val sstate = Set(ag.toItem(Example.eof), sr.toItem(Example.eof),
                      c1.toItem(Example.c), c1.toItem(Example.d),

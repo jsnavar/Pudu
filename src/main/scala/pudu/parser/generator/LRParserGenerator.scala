@@ -28,9 +28,13 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
 
   /* (StateIdx, TokenOrdinal) -> Action */
   type ActionTable = Map[(Int,Int), SRAction]
+  /* ((stateIndex, tokenOrdinal), Action) */
+  type ActionTableEntry = ((Int, Int), SRAction)
 
   /* (StateIdx, NonTerminal) -> ToStateIdx */
   type GotoTable = Map[(Int,Symbol), Int]
+  /* ((stateIndex, nonTerminalSymbol), stateIndex) */
+  type GotoTableEntry = ((Int, Symbol), Int)
 
   /* Grammar is augmented with a new start symbol */
   val startSymbol = NonTerminal[Tree]("S'")
@@ -47,12 +51,19 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
   def isTerminal(symbol: Symbol) = terminals.contains(symbol)
   def isNonTerminal(symbol: Symbol) = nonTerminals.contains(symbol)
 
+  /* start state is the closure of the augmented rule */
+  val startState: State = closure(Set(augmentedRule.toItem))
+
   /** maps a token ordinal to its name. This is only used to generate
    *  error messages, so it is declared as lazy */
   lazy val tokenNames = terminals.asInstanceOf[Set[Terminal[_]]]
     .map(t => t.ordinal -> t.name).toMap
 
-  /** Closure of a state. Follows the standard definition */
+  /*
+   * Auxiliary functions
+   */
+
+  /** LR0 Closure of a state */
   def closure(state: State): State =
     stateClosure(state, rules.map(_.toItem))
 
@@ -93,9 +104,13 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
       if newStates.isEmpty then current ++ newEdges
       else
         computeAutomaton(current ++ newEdges, computed ++ frontier, newStates)
-    // Start from the augmented rule ( S' -> S )
-    val startState = closure(Set(augmentedRule.toItem))
     computeAutomaton(Map.empty, Set.empty, Set(startState))
+
+  lazy val indexedStates =
+    val nonStartingStates = lr0Automaton.values.toSet
+    val states = nonStartingStates + startState
+    val numOfStates = states.size
+    nonStartingStates.zip(1 until numOfStates).toMap + (startState -> 0)
 
   /** Given a set of pairs 'current: Set[(L, R)]', and a graph 'edges: Set[(L, L)]',
    *  this function computes:
@@ -142,6 +157,87 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     yield (pair(0), elem)
     val startPairs = start + (startSymbol -> eof) // S' -> $ is in follow by definition
     groupPairs(lfp(edges, startPairs))
+
+  /*
+   * Parsing tables
+   */
+
+  /** builds the action table key */
+  def actionTableKey(from: State, terminal: Terminal[Token]) =
+    val fromIdx = indexedStates(from)
+    val terminalOrdinal = terminal.ordinal
+    (fromIdx, terminalOrdinal)
+
+  /** Action table entry for shift actions */
+  def shiftTo(from: State, terminal: Terminal[Token], to: State): ActionTableEntry =
+    val key = actionTableKey(from, terminal)
+    val toIdx = indexedStates(to)
+    (key, SRAction.Shift(toIdx))
+
+  /** Action table entry for reduce actions */
+  def reduceBy(from: State, terminal: Terminal[Token], rule: RuleT): ActionTableEntry =
+    val key = actionTableKey(from, terminal)
+    (key, SRAction.Reduce(rule))
+
+  /** Action table entry for accept action */
+  def acceptOn(acceptState: State): ActionTableEntry =
+    val key = actionTableKey(acceptState, eof)
+    (key, SRAction.Accept)
+
+  /** uses precedence to solve shift reduce conflicts. Default is to shift, in
+   *  accordance to tradition (https://www.gnu.org/software/bison/manual/html_node/How-Precedence.html) */
+  def shiftReduceResolution(from: State, to: State)(rule: RuleT, terminal: Terminal[Token]): ActionTableEntry =
+    val lastTerminalOfRule = rule.right.findLast(isTerminal)
+    if !lastTerminalOfRule.isDefined then
+      // shift by default
+      shiftTo(from, terminal, to)
+    else precedence.max(lastTerminalOfRule.get, terminal) match
+      case Side.Left => reduceBy(from, terminal, rule)
+      case Side.Right => shiftTo(from, terminal, to)
+      case Side.Neither => shiftTo(from, terminal, to) // shift by default
+      case Side.Error => throw ShiftReduceConflictException(rule, terminal)
+
+  lazy val reduceActions: Map[(State, Terminal[Token]), RuleT]
+
+  lazy val (actionTable, gotoTable) =
+    type LRTables = (ActionTable, GotoTable)
+
+    /* Update LRTables for a given LR0 automaton edge */
+    def updateTables(tables: LRTables, edge: ((State, Symbol), State)): LRTables =
+      /* unapply edge and tables to simplify code */
+      val ((fromState, symbol), toState) = edge
+      val (actionsTable, gotoTable) = tables
+
+      /* updates will depend on the type of symbol */
+      symbol match
+        case t: Terminal[_] =>
+          val terminal = t.asInstanceOf[Terminal[Token]]
+          /* This assert is true by construction of the LR0 automaton */
+          assert(fromState.exists(item => !item.after.isEmpty && item.after.head == terminal))
+          /* Check if there is a SR conflict */
+          val action = if reduceActions.contains(fromState, terminal) then
+            val reduceByRule = reduceActions(fromState, terminal)
+            shiftReduceResolution(fromState, toState)(reduceByRule, terminal)
+          else shiftTo(fromState, terminal, toState)
+          /* update actionsTable */
+          (actionsTable + action, gotoTable)
+        case _: NonTerminal[_] =>
+          /* For non terminals, the edge corresponds to an entry in the goto table */
+          val fromStateIdx = indexedStates(fromState)
+          val toStateIdx = indexedStates(toState)
+          val gotoEntry = (fromStateIdx, symbol) -> toStateIdx
+          (actionsTable, gotoTable + gotoEntry)
+
+    // Transform the Map reduceAction into an initial ActionTable
+    val reduce = reduceActions.map { case ((from, terminal), rule) => reduceBy(from, terminal, rule) }
+    // Compute tables. Actions table is partial because it lacks the accept condition */
+    val (partialActionTable, gotoTable) = lr0Automaton.foldLeft((reduce, Map.empty))(updateTables)
+
+    // add accept condition
+    val acceptState = lr0Automaton(startState, lang.start)
+    val acceptEntry: ActionTableEntry = acceptOn(acceptState)
+
+    (partialActionTable + acceptEntry, gotoTable)
 
   /** LR parsing algorithm */
   def lrParse(action: ActionTable, goto: GotoTable)(input: Iterator[Token]): Either[ErrorMsg, Tree] =

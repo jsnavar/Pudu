@@ -6,7 +6,9 @@ import pudu.parser._
 class LR1ParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[Tree,Token]) extends LRParserGenerator(lang):
 
   /** start state */
-  val startState = closure(Set(augmentedRule.toItem(eof)))
+  override val startState = closure(Set(augmentedRule.toItem(eof)))
+
+  lazy val reduceActions: Map[(State, Terminal[Token]), RuleT] = ???
 
   /** state closure for LR1 parsers. */
   override def closure(state: State): State =
