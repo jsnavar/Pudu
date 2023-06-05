@@ -13,7 +13,8 @@ case class Item[Tree,Token <: reflect.Enum](left: Symbol, before: Seq[Symbol], a
     s"$left ::= ${sp(before)} · ${sp(after)}"
 
 extension[Tree,Token <: reflect.Enum] (rule: Rule[Tree,Token])
-  def toItem: Item[Tree,Token] = Item(rule.left, Seq.empty[Symbol], rule.right, Set.empty, rule)
+  def toItem: Item[Tree,Token] = rule.toItem(Set.empty)
+  def toItem(ctx: Set[Terminal[Token]]) = Item(rule.left, Seq.empty[Symbol], rule.right, ctx, rule)
 
 /** Base class for LR parser generators (SLR, LR(1), LALR) */
 abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[Tree,Token]) extends ParserGenerator[Tree, Token]:
@@ -79,7 +80,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
 
   /** Computes the LR0 automaton, i.e. a map that given a state and a symbol, returns
    *  the next state */
-  val lr0Automaton: Map[(State, Symbol), State] =
+  lazy val lr0Automaton: Map[(State, Symbol), State] =
     def computeAutomaton(current: Map[(State, Symbol), State], computed: Set[State], frontier: Set[State]): Map[(State, Symbol), State] =
       // Compute goto for each state in frontier, getting a Map[(State, Symbol), State] with all the results
       val newEdges = frontier.flatMap(goto)
@@ -115,7 +116,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
 
   /** Pudu does not support null productions, so FIRST reduces to reachability
    *  in the graph given by the first symbol of each production. */
-  val first: Map[Symbol, Set[Terminal[Token]]] =
+  lazy val first: Map[Symbol, Set[Terminal[Token]]] =
     val edges: Set[SymPair] = rules.map(rule => rule.left -> rule.right.head)
     /* The LFP starts from {(t,t)| t is a terminal} */
     val start = terminals.map(t => t -> t.asInstanceOf[Terminal[Token]])
@@ -124,7 +125,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
   /** FOLLOW is also computed as reachability but with reversed edges: from the last
    *  symbol of the rhs to the left symbol. This follows the definition,
    *  because for each production X ::= ...Z, FOLLOW(X)\subseteq FOLLOW(Z) */
-  val follow: Map[Symbol, Set[Terminal[Token]]] =
+  lazy val follow: Map[Symbol, Set[Terminal[Token]]] =
     val edges: Set[SymPair] = rules.filter(rule => isNonTerminal(rule.right.last))
       .map(rule => rule.right.last -> rule.left)
     /* the starting set is
