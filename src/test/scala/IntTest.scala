@@ -4,7 +4,7 @@ import pudu.parser._
 import pudu.parser.generator._
 
 class IntTest extends munit.FunSuite {
-  val parser = SLRParserGenerator(SimpleArithmetic).parser
+  val parser = LR1ParserGenerator(SimpleArithmetic).parser
 
   test("eval 1") {
     val input = "2 + 3 * pow(3, 5)"
