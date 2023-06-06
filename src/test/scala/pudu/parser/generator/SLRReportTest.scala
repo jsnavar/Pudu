@@ -3,9 +3,9 @@ import pudu.parser.generator._
 
 import scala.util.matching._
 
-class SLRReportTest extends munit.FunSuite {
+class LRReportTest extends munit.FunSuite {
   val gen = SLRParserGenerator(SimpleArithmetic)
-  val report = SLRReport(gen)
+  val report = LRReport(gen)
 
   test("number of rules") {
     assertEquals(gen.rules.size, 1 + report.rules.count(_ == '\n'))

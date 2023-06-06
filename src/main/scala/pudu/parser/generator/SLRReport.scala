@@ -4,7 +4,7 @@ import pudu.parser._
 import pudu.grammar._
 
 /** Generates a human readable report on parser */
-class SLRReport[Tree, Token <: reflect.Enum](parser: SLRParserGenerator[Tree, Token]):
+class LRReport[Tree, Token <: reflect.Enum](parser: LRParserGenerator[Tree, Token]):
 
   private def indentNL[T](ntabs: Int, c: Iterable[T]): String =
     c.map(x => "\t" * ntabs + x).mkString("\n")
@@ -47,4 +47,27 @@ class SLRReport[Tree, Token <: reflect.Enum](parser: SLRParserGenerator[Tree, To
     indentNL(1, parser.actionTable.map(actionString))
 
   def reportAll: String =
-    s" Rules:\n\n$rules\n\n States:\n\n$states\n\n Action Table:\n\n$actionTable\n"
+    /* transform a Map[(K1, K2), V] to a Map[K1, Set((K2, V))] */
+    def groupTable[K1,K2,V] (table: Map[(K1,K2),V]) =
+      table.groupMap(_._1._1)
+                    (entry => (entry._1._2 -> entry._2))
+
+    val actions = groupTable(parser.actionTable)
+    val goto = groupTable(parser.gotoTable)
+
+    /* strings for actions and goto entries */
+    def actionString(ordinal: Int, action: SRAction) =
+      val tokName = parser.tokenNames.getOrElse(ordinal, "UNK")
+      s"on $tokName --> $action"
+    def gotoString(nt: Symbol, toState: Int) =
+      s"goto: ${nt} --> ${toState}"
+
+    /* generate report */
+    parser.indexedStates.toSeq.sortBy(_._2)
+      .map { case (state, idx) =>
+               Seq(s"\tState $idx:",
+                   indentNL(2, state),
+                   indentNL(2, actions(idx).map(actionString)),
+                   indentNL(2, goto.getOrElse(idx, Set.empty).map(gotoString)))
+                     .filterNot(_.isEmpty).mkString("\n") }
+      .mkString("\n\n")

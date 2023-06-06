@@ -12,7 +12,8 @@ object SRAction:
   /** Reduce by 'rule' */
   case class Reduce[T, ST](rule: Rule[T,ST]) extends SRAction
 
-  object Accept extends SRAction
-  object Error extends SRAction
+  object Accept extends SRAction:
+    override def toString = "Accept"
 
-
+  object Error extends SRAction:
+    override def toString = "Error"

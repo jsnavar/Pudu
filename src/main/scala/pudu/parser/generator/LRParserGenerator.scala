@@ -11,7 +11,8 @@ case class Item[Tree,Token <: reflect.Enum](left: Symbol, before: Seq[Symbol], a
   def shift = Item(left, before :+ after.head, after.tail, context, rule)
   override def toString =
     def sp[T](seq: Seq[T]) = seq.mkString(" ")
-    s"$left ::= ${sp(before)} · ${sp(after)}"
+    val ctxStr = context.map(term => s" | ${term.toString}").getOrElse("")
+    s"$left ::= ${sp(before)} · ${sp(after)}${ctxStr}"
 
 extension[Tree, Token <: reflect.Enum] (rule: Rule[Tree, Token])
   def toItem: Item[Tree, Token] = Item[Tree, Token](rule.left, Seq.empty[Symbol], rule.right, None, rule)
