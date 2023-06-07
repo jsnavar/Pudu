@@ -6,7 +6,7 @@ lazy val root = project
   .in(file("."))
   .settings(
     name := "pudu",
-    version := "0.1.2",
+    version := "0.2.0",
 
     scalaVersion := scala3Version,
     githubOwner := "jsnavar",
