@@ -93,9 +93,9 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
       .groupBy(_.after.head)
       .map((symbol, gotoState) => ((state, symbol), closure(gotoState.map(_.shift))))
 
-  /** Computes the LR0 automaton, i.e. a map that given a state and a symbol, returns
+  /** Computes the LR automaton, i.e. a map that given a state and a symbol, returns
    *  the next state */
-  lazy val lr0Automaton: Map[(State, Symbol), State] =
+  lazy val lrAutomaton: Map[(State, Symbol), State] =
     def computeAutomaton(current: Map[(State, Symbol), State], computed: Set[State], frontier: Set[State]): Map[(State, Symbol), State] =
       // Compute goto for each state in frontier, getting a Map[(State, Symbol), State] with all the results
       val newEdges = frontier.flatMap(goto)
@@ -108,7 +108,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     computeAutomaton(Map.empty, Set.empty, Set(startState))
 
   lazy val indexedStates =
-    val nonStartingStates = lr0Automaton.values.toSet
+    val nonStartingStates = lrAutomaton.values.toSet
     val states = nonStartingStates + startState
     val numOfStates = states.size
     nonStartingStates.zip(1 until numOfStates).toMap + (startState -> 0)
@@ -203,7 +203,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
   lazy val (actionTable, gotoTable) =
     type LRTables = (ActionTable, GotoTable)
 
-    /* Update LRTables for a given LR0 automaton edge */
+    /* Update LRTables for a given LR automaton edge */
     def updateTables(tables: LRTables, edge: ((State, Symbol), State)): LRTables =
       /* unapply edge and tables to simplify code */
       val ((fromState, symbol), toState) = edge
@@ -213,7 +213,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
       symbol match
         case t: Terminal[_] =>
           val terminal = t.asInstanceOf[Terminal[Token]]
-          /* This assert is true by construction of the LR0 automaton */
+          /* This assert is true by construction of the LR automaton */
           assert(fromState.exists(item => !item.after.isEmpty && item.after.head == terminal))
           /* Check if there is a SR conflict */
           val action = if reduceActions.contains(fromState, terminal) then
@@ -232,10 +232,10 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     // Transform the Map reduceAction into an initial ActionTable
     val reduce = reduceActions.map { case ((from, terminal), rule) => reduceBy(from, terminal, rule) }
     // Compute tables. Actions table is partial because it lacks the accept condition */
-    val (partialActionTable, gotoTable) = lr0Automaton.foldLeft((reduce, Map.empty))(updateTables)
+    val (partialActionTable, gotoTable) = lrAutomaton.foldLeft((reduce, Map.empty))(updateTables)
 
     // add accept condition
-    val acceptState = lr0Automaton(startState, lang.start)
+    val acceptState = lrAutomaton(startState, lang.start)
     val acceptEntry: ActionTableEntry = acceptOn(acceptState)
 
     (partialActionTable + acceptEntry, gotoTable)

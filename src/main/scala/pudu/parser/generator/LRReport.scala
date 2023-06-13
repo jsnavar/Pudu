@@ -31,8 +31,8 @@ class LRReport[Tree, Token <: reflect.Enum](parser: LRParserGenerator[Tree, Toke
         s"\tFOLLOW[$symbol] = \n\t\t{ ${fsString} }"
     }.mkString("\n")
 
-  lazy val lr0Automaton: String =
-    parser.lr0Automaton.map {
+  lazy val lrAutomaton: String =
+    parser.lrAutomaton.map {
       case ((from, symbol), to) =>
         val fromIdx = parser.indexedStates(from)
         val toIdx = parser.indexedStates(to)

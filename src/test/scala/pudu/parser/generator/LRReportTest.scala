@@ -32,8 +32,8 @@ class LRReportTest extends munit.FunSuite {
     assertEquals(gen.follow.size, count)
   }
 
-  test("lr0 automaton size") {
-    assertEquals(gen.lr0Automaton.size, 1 + report.lr0Automaton.count(_ == '\n'))
+  test("lr automaton size") {
+    assertEquals(gen.lrAutomaton.size, 1 + report.lrAutomaton.count(_ == '\n'))
   }
 
   test("actions table size") {
@@ -46,7 +46,7 @@ class LRReportTest extends munit.FunSuite {
       override val startState = Set.empty
       override def parser = ???
       lazy val reduceActions: Map[(State, Terminal[Token]), RuleT] = Map.empty
-      override lazy val lr0Automaton: Map[(State, Symbol), State] = Map.empty
+      override lazy val lrAutomaton: Map[(State, Symbol), State] = Map.empty
 
       val stubRule = rules.find(r => r.left == SimpleArithmetic.exprList && r.right.size == 1).get
       override lazy val indexedStates = Map(Set.empty -> 0,

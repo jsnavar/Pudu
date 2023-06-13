@@ -103,8 +103,8 @@ class LrCommonTest extends munit.FunSuite {
     assertEquals(gotoAll(state, minus).toSet, TestLR.goto(state, minus))
     assertEquals(gotoAll(state, times).toSet, TestLR.goto(state, times))
   }
-  test("lr0Automaton") {
-    val automaton = TestLR.lr0Automaton
+  test("lrAutomaton") {
+    val automaton = TestLR.lrAutomaton
     val startState = TestLR.closure(Set(TestLR.augmentedRule.toItem))
 
     val toExpr = TestLR.goto(startState, expr)
