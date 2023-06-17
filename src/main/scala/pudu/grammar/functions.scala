@@ -2,8 +2,8 @@ package pudu.grammar
 
 import scala.quoted.*
 
-/* Given a function fn: Tup => ST, where Tup is a tuple type of arity 'size',
- * toSeqFnTuple(fn) is inlined to the function:
+/* Given a function fn: Tup => Ret, where Tup is a tuple type of arity 'size',
+ * toSeqFnTuple(fn) is a function equivalent to:
  * {{{
      (x: Seq[Args]) => fn((x(size - 1), x(size - 2), ..., x(1), x(0)).asInstanceOf[Tup])
  * }}},
@@ -22,7 +22,7 @@ def toSeqFnTupleImpl[Args: Type, Ret: Type, Tup <: Tuple: Type](size: Expr[Int],
   '{ (x: Seq[Args]) =>
     ${
       val argsExp = Expr.ofTupleFromSeq(idxSeq.map(i => '{x($i)}))
-      '{ $fn(${argsExp}.asInstanceOf[Tup]) }
+      Expr.betaReduce('{ $fn(${argsExp}.asInstanceOf[Tup]) })
     }
   }
 
