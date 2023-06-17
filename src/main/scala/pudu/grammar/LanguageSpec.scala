@@ -8,7 +8,7 @@ package pudu.grammar
  *  - precedence: precedence and associativity rules
  *
  *  Types Tree and Token refer to the types used for NonTerminal and Terminal respectively */
-abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum]:
+abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum](using scala.util.NotGiven[reflect.Enum <:< Token]):
 
   // Rules are collected into a private mutable set, which is later "fixed" to the immutable set 'rules'
   private val rulesSet = scala.collection.mutable.HashSet[Rule[Tree,Token]]()
