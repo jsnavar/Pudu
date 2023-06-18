@@ -29,8 +29,6 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
 
   /* (StateIdx, TokenOrdinal) -> Set[Action] */
   type ActionTable = Map[(Int,Int), Set[SRAction]]
-  /* ((stateIndex, tokenOrdinal), Action) */
-  type ActionTableEntry = ((Int, Int), SRAction)
 
   /* (StateIdx, NonTerminal) -> ToStateIdx */
   type GotoTable = Map[(Int,Symbol), Int]
@@ -170,34 +168,30 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     (fromIdx, terminalOrdinal)
 
   /** Action table entry for shift actions */
-  def shiftTo(from: State, terminal: Terminal[Token], to: State): ActionTableEntry =
+  def shiftTo(from: State, terminal: Terminal[Token], to: State): ActionTable =
     val key = actionTableKey(from, terminal)
     val toIdx = indexedStates(to)
-    (key, SRAction.Shift(toIdx))
+    Map(key -> Set(SRAction.Shift(toIdx)))
 
   /** Action table entry for reduce actions */
-  def reduceBy(from: State, terminal: Terminal[Token], rule: RuleT): ActionTableEntry =
+  def reduceBy(from: State, terminal: Terminal[Token], rule: RuleT): ActionTable =
     val key = actionTableKey(from, terminal)
-    (key, SRAction.Reduce(rule))
+    Map(key -> Set(SRAction.Reduce(rule)))
 
   /** Action table entry for accept action */
-  def acceptOn(acceptState: State): ActionTableEntry =
+  def acceptOn(acceptState: State): ActionTable =
     val key = actionTableKey(acceptState, eof)
-    (key, SRAction.Accept)
+    Map(key -> Set(SRAction.Accept))
 
   extension (table: ActionTable)
-    def add(entry: ActionTableEntry): ActionTable =
-      val (key, value) = entry
-      table.updated(key, (table.getOrElse(key, Set.empty) + value))
-
-  extension (entry: ActionTableEntry)
-    def toTable: ActionTable =
-      val (key, value) = entry
-      Map(key -> Set(value))
+    def merge(that: ActionTable): ActionTable =
+      that.foldLeft(table)((t, pair) =>
+        val (key, value) = pair
+        t.updated(key, (t.getOrElse(key, Set.empty) ++ value)))
 
   /** uses precedence to solve shift reduce conflicts. Default is to shift, in
    *  accordance to tradition (https://www.gnu.org/software/bison/manual/html_node/How-Precedence.html) */
-  def shiftReduceResolution(from: State, to: State)(rule: RuleT, terminal: Terminal[Token]): ActionTableEntry =
+  def shiftReduceResolution(from: State, to: State)(rule: RuleT, terminal: Terminal[Token]): ActionTable =
     val lastTerminalOfRule = rule.right.findLast(isTerminal)
     if !lastTerminalOfRule.isDefined then
       // shift by default
@@ -206,7 +200,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
       case Side.Left => reduceBy(from, terminal, rule)
       case Side.Right => shiftTo(from, terminal, to)
       case Side.Neither => shiftTo(from, terminal, to) // shift by default
-      case Side.Error => throw ShiftReduceConflictException(rule, terminal)
+      case Side.Error => shiftTo(from, terminal, to).merge(reduceBy(from, terminal, rule))
 
   lazy val reduceActions: Map[(State, Terminal[Token]), Set[RuleT]]
 
@@ -237,11 +231,11 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
               /* If there is a conflict, apply resolution only if there is only one reduce action.
                * In case of a rr conflict, just return the full set of actions, including the shift */
               val rules = reduceActions(fromState, terminal)
-              if rules.size == 1 then shiftReduceResolution(fromState, toState)(rules.head, terminal).toTable
+              if rules.size == 1 then shiftReduceResolution(fromState, toState)(rules.head, terminal)
               else
                 val reduce = reduceTable(fromState, terminal, rules)
-                reduce.add(shiftEntry)
-            else shiftEntry.toTable
+                reduce.merge(shiftEntry)
+            else shiftEntry
           (actionsTable ++ subTable, gotoTable)
         case _: NonTerminal[_] =>
           /* For non terminals, the edge corresponds to an entry in the goto table */
@@ -257,9 +251,9 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
 
     // add accept condition
     val acceptState = lrAutomaton(startState, lang.start)
-    val acceptEntry: ActionTableEntry = acceptOn(acceptState)
+    val acceptEntry: ActionTable = acceptOn(acceptState)
 
-    (partialActionTable ++ acceptEntry.toTable, gotoTable)
+    (partialActionTable ++ acceptEntry, gotoTable)
 
   /** LR parsing algorithm */
   def lrParse(actions: ActionTable, goto: GotoTable)(input: Iterator[Token]): Either[ErrorMsg, Tree] =
