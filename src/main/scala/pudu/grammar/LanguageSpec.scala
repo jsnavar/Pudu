@@ -39,7 +39,7 @@ abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum](using scala.util.
     protected inline def ::= [Tup <: NonEmptyTuple] (inline right: Tup)(inline fn: TupSymData[Tup] => R)(using IsBoundedTuple[Tree, Token, Tup]): Unit =
       rulesSet += Rule(left,
                        right.toList.asInstanceOf[Seq[Symbol]], // this cast is safe by the IsBoundedTuple clause above
-                       toSeqFnTuple(fn))
+                       toSeqFn(fn))
     /* This is defined to allow syntax (left ::= right) for unit productions */
     protected inline def ::= [T <: Symbol] (inline right: T)(inline fn: SymData[T] => R)(using IsBounded[Tree, Token, T]): Unit =
       rulesSet += Rule(left, Seq(right), toSeqFn(fn))

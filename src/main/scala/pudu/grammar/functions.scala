@@ -26,10 +26,13 @@ def toSeqFnTupleImpl[Args: Type, Ret: Type, Tup <: Tuple: Type](size: Expr[Int],
     }
   }
 
-/* special case for unit productions */
+/* Entry point, covering tuples and single types (for unit productions) */
 inline def toSeqFn[ArgsType, RetType, T](inline fn: T => RetType): Seq[ArgsType] => RetType =
-  (args: Seq[ArgsType]) =>
-    fn(args.head.asInstanceOf[T])
+  inline fn match
+    case f: (x *: xs => RetType) => toSeqFnTuple(f)
+    case f: (T => RetType) =>
+      (args: Seq[ArgsType]) =>
+        fn(args.head.asInstanceOf[T])
 
 /** Gets the ordinal value and name of an enum case from its type.
  *  This macro abuses the implementation of Enums, using that
