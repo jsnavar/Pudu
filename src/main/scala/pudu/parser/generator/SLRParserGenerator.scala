@@ -8,7 +8,7 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
   /** For each state 'state', compute pairs ((state, terminal), rule),
    *  where rule is the rule to reduce by given the pair (state, terminal).
    *  Throws a ReduceReduceConflictException in case of a RR conflict. */
-  override lazy val reduceActions: Map[(State, Terminal[Token]), RuleT] =
+  override lazy val reduceActions: Map[(State, Terminal[Token]), Set[RuleT]] =
     /* First, we generate tuples (state, terminal, rule), such that there exists
      * an item X -> \alpha\cdot in state, and terminal\in FOLLOW(X). */
     val reduceByCases = for
@@ -20,10 +20,7 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
     /* Then, we group that tuples into ((state, terminal), rule), ensuring
      * that only tuple exists for each pair (state, terminal) */
     reduceByCases.groupMap(t => (t._1, t._2))(_._3).view
-      .mapValues { rules =>
-        if rules.size > 1 then throw ReduceReduceConflictException(rules)
-        rules.head
-      }.toMap
+      .mapValues(_.toSet).toMap
 
   def parser: Iterator[Token] => Either[ErrorMsg, Tree] =
     lrParse(actionTable, gotoTable)

@@ -40,22 +40,22 @@ class LRReportTest extends munit.FunSuite {
     assertEquals(gen.actionTable.size, 1 + report.actionTable.count(_ == '\n'))
   }
 
-  test("report all") {
+  test("report all without conflicts") {
     val stub = new LRParserGenerator(SimpleArithmetic) {
       override def closure(state: State): State = Set.empty
       override val startState = Set.empty
       override def parser = ???
-      lazy val reduceActions: Map[(State, Terminal[Token]), RuleT] = Map.empty
+      lazy val reduceActions: Map[(State, Terminal[Token]), Set[RuleT]] = Map.empty
       override lazy val lrAutomaton: Map[(State, Symbol), State] = Map.empty
 
       val stubRule = rules.find(r => r.left == SimpleArithmetic.exprList && r.right.size == 1).get
       override lazy val indexedStates = Map(Set.empty -> 0,
                                             Set(stubRule.toItem(eof).shift) -> 1,
                                             Set.empty -> 2)
-      override lazy val actionTable = Map((1,1) -> SRAction.Accept,
-                                          (1,2) -> SRAction.Shift(3),
-                                          (2,1) -> SRAction.Reduce(stubRule),
-                                          (2,3) -> SRAction.Reduce(stubRule))
+      override lazy val actionTable = Map((1,1) -> Set(SRAction.Accept),
+                                          (1,2) -> Set(SRAction.Shift(3)),
+                                          (2,1) -> Set(SRAction.Reduce(stubRule)),
+                                          (2,3) -> Set(SRAction.Reduce(stubRule)))
       override lazy val gotoTable = Map((1, SimpleArithmetic.expr) -> 2)
     }
 
@@ -73,5 +73,42 @@ class LRReportTest extends munit.FunSuite {
 		on Times --> Reduce(ExprList ::= Expr)"""
     assertEquals(report.all, expected)
   }
+
+  test("report all with conflicts") {
+    val stub = new LRParserGenerator(SimpleArithmetic) {
+      override def closure(state: State): State = Set.empty
+      override val startState = Set.empty
+      override def parser = ???
+      lazy val reduceActions: Map[(State, Terminal[Token]), Set[RuleT]] = Map.empty
+      override lazy val lrAutomaton: Map[(State, Symbol), State] = Map.empty
+
+      val stubRule = rules.find(r => r.left == SimpleArithmetic.exprList && r.right.size == 1).get
+      override lazy val indexedStates = Map(Set.empty -> 0,
+                                            Set(stubRule.toItem(eof).shift) -> 1,
+                                            Set.empty -> 2)
+      override lazy val actionTable = Map((1,1) -> Set(SRAction.Accept),
+                                          (1,2) -> Set(SRAction.Shift(3), SRAction.Shift(4)),
+                                          (2,1) -> Set(SRAction.Reduce(stubRule)),
+                                          (2,3) -> Set(SRAction.Reduce(stubRule)))
+      override lazy val gotoTable = Map((1, SimpleArithmetic.expr) -> 2)
+    }
+
+    val report = LRReport(stub)
+    val template = """	State 1:
+		ExprList ::= Expr ·  | EOF
+		---
+		on RPar --> Accept
+		on Plus --> [Shift(<v1>), Shift(<v2>)]
+		---
+		if Expr goto 2
+
+	State 2:
+		on RPar --> Reduce(ExprList ::= Expr)
+		on Times --> Reduce(ExprList ::= Expr)"""
+    val alternatives = Set(template.replace("<v1>", "3").replace("<v2>", "4"),
+                           template.replace("<v1>", "4").replace("<v2>", "3"))
+    assert(alternatives.contains(report.all))
+  }
+
 
 }

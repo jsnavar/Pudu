@@ -4,7 +4,7 @@ import pudu.parser.generator._
 class LrCommonTest extends munit.FunSuite {
   import SimpleArithmetic._
   object TestLR extends LRParserGenerator(SimpleArithmetic):
-    override lazy val reduceActions: Map[(State, Terminal[Token]), RuleT] = ???
+    override lazy val reduceActions: Map[(State, Terminal[Token]), Set[RuleT]] = ???
     override val startState = closure(Set(augmentedRule.toItem))
     def parser = ???
 

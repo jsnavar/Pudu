@@ -9,6 +9,10 @@ class LRReport[Tree, Token <: reflect.Enum](parser: LRParserGenerator[Tree, Toke
   private def indentNL[T](ntabs: Int, c: Iterable[T]): String =
     c.map(x => "\t" * ntabs + x).mkString("\n")
 
+  private def iterToStr[T](entries: Iterable[T]): String =
+    if entries.size == 1 then entries.head.toString
+    else s"[${entries.mkString(", ")}]"
+
   lazy val rules: String = indentNL(1, parser.rules)
 
   lazy val states: String =
@@ -40,10 +44,11 @@ class LRReport[Tree, Token <: reflect.Enum](parser: LRParserGenerator[Tree, Toke
     }.mkString("\n")
 
   lazy val actionTable: String =
-    def actionString(key: (Int, Int), action: SRAction) =
+    def actionString(key: (Int, Int), actions: Set[SRAction]) =
       val (state, ordinal) = key
       val tokName = parser.tokenNames.getOrElse(ordinal, "UNK")
-      s"(state($state), $tokName) --> $action"
+      val actionsStr = iterToStr(actions)
+      s"(state($state), $tokName) --> $actionsStr"
     indentNL(1, parser.actionTable.map(actionString))
 
   lazy val all: String =
@@ -56,9 +61,10 @@ class LRReport[Tree, Token <: reflect.Enum](parser: LRParserGenerator[Tree, Toke
     val goto = groupTable(parser.gotoTable)
 
     /* strings for actions and goto entries */
-    def actionString(ordinal: Int, action: SRAction) =
+    def actionString(ordinal: Int, actions: Set[SRAction]) =
       val tokName = parser.tokenNames.getOrElse(ordinal, "UNK")
-      s"on $tokName --> $action"
+      val actionsStr = iterToStr(actions)
+      s"on $tokName --> $actionsStr"
     def gotoString(nt: Symbol, toState: Int) =
       s"if ${nt} goto ${toState}"
 
