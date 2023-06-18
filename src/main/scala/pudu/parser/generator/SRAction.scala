@@ -10,7 +10,7 @@ object SRAction:
   case class Shift(state: Int) extends SRAction
 
   /** Reduce by 'rule' */
-  case class Reduce[T, ST](rule: Rule[T,ST]) extends SRAction
+  case class Reduce[Tree, Token](rule: Rule[Tree,Token]) extends SRAction
 
   object Accept extends SRAction:
     override def toString = "Accept"

@@ -76,3 +76,20 @@ class LRReport[Tree, Token <: reflect.Enum](parser: LRParserGenerator[Tree, Toke
                    indentNL(2, goto.getOrElse(idx, Set.empty).map(gotoString)))
                      .filterNot(_.isEmpty).mkString("\n\t\t---\n") }
       .mkString("\n\n")
+
+  def writeAllToFile(path: String): Unit =
+    import scala.util.{Try, Success, Failure}
+    import java.io.{File, PrintWriter}
+
+    Try {
+      val file = File(path)
+      val dir = File(file.getParent())
+      dir.mkdirs()
+      PrintWriter(file) } match
+        case Success(printer) =>
+          printer.print("Productions:\n")
+          printer.print(rules)
+          printer.print("\nStates:\n")
+          printer.print(all)
+          printer.close()
+        case _ => ()

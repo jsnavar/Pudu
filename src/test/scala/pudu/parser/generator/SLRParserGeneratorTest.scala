@@ -239,6 +239,28 @@ class SLRParserGeneratorTest extends munit.FunSuite {
     assert(actions.find(entry => entry._2.size == 3).isDefined)
   }
 
+  test("RR conflict report") {
+    object Arithmetic extends LanguageSpec[Int, Token]:
+      val expr = NonTerminal[Int]("expr")
+
+      val times = Terminal[Token.Times]
+      val plus = Terminal[Token.Plus]
+      val intLit = Terminal[Token.IntLit]
+
+      override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
+      override val start = expr
+
+      (expr ::= intLit) { _.value }
+      (expr ::= (expr, plus, expr)) { (l,_,r) => l + r }
+      (expr ::= (expr, plus, expr)) { (l,_,r) => l * r }
+
+    val ex = intercept[UnresolvedConflictException] {
+      val parser = SLRParserGenerator(Arithmetic).parser
+    }
+    assert(ex.getMessage().startsWith("Unresolved conflicts. Report written to"))
+  }
+
   test("syntax error") {
     val input = "2 + * 3"
     val lexer = ArithmeticLexer.lexer(input)

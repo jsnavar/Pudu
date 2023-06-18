@@ -6,7 +6,6 @@ class LrCommonTest extends munit.FunSuite {
   object TestLR extends LRParserGenerator(SimpleArithmetic):
     override lazy val reduceActions: Map[(State, Terminal[Token]), Set[RuleT]] = ???
     override val startState = closure(Set(augmentedRule.toItem))
-    def parser = ???
 
   def select(f: TestLR.RuleT => Boolean): TestLR.State =
     rules.filter(f).map(_.toItem)

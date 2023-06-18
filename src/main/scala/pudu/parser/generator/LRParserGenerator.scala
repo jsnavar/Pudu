@@ -257,11 +257,10 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
 
     (partialActionTable + acceptEntry, gotoTable)
 
-  /** LR parsing algorithm */
-  def lrParse(actions: ActionTable, goto: GotoTable)(input: Iterator[Token]): Either[ErrorMsg, Tree] =
-    assert(actions.forall(_._2.size == 1))
+  type ActionTableSingle = Map[(Int, Int), SRAction]
 
-    val action = actions.map((k,v) => k -> v.head)
+  /** LR parsing algorithm */
+  def lrParse(action: ActionTableSingle, goto: GotoTable)(input: Iterator[Token]): Either[ErrorMsg, Tree] =
     def expectedTokens(state: Int) = action
         .keys.filter(_._1 == state) //tokens with a valid action table entry
         .map(_._2) //get ordinal values
@@ -304,3 +303,13 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
           else Left(SyntaxError(token, tokenNames(token.ordinal), expectedTokens(state)))
     // start from the initial state with empty semantic stack. If the input is empty generates an EmptyInputError
     shiftToken(Seq(0), Seq.empty)(ErrorMsg.EmptyInputError)
+
+  def parser: Iterator[Token] => Either[ErrorMsg, Tree] =
+    val actions: ActionTableSingle =
+      if actionTable.exists(_._2.size != 1) then
+        val writeTo = "target/pudu/report"
+        val report = LRReport(this).writeAllToFile(writeTo)
+
+        throw UnresolvedConflictException(writeTo)
+      else actionTable.map((k,v) => k -> v.head)
+    lrParse(actions, gotoTable)

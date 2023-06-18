@@ -43,5 +43,3 @@ class LR1ParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
     reduceByCases.groupMap(t => (t._1, t._2))(_._3).view
       .mapValues(_.toSet).toMap
 
-  def parser: Iterator[Token]=>Either[ErrorMsg, Tree] =
-    lrParse(actionTable, gotoTable)
