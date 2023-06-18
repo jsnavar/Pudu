@@ -29,25 +29,21 @@ object Terminal:
     val (ordinal, _) = enumMetadata[T]
     new Terminal[T](ordinal, name)
 
-/* The type of the data associated with a symbol. */
+/* The type of the data associated with a symbol or tuple of symbols.
+ * We don't use {{{ case Tuple => Tuple.Map[T, SymData] }}} to avoid
+ * matching nested tuples */
 type SymData[T] = T match
   case Terminal[t] => t
   case NonTerminal[t] => t
+  case Tuple => Tuple.Map[T, [x] =>> x match
+                                        case NonTerminal[u] => u
+                                        case Terminal[u] => u]
 
-/* Given a tuple type Tup, SymBound[Tree, Token, Tup] is another tuple type of the same size,
- * where every position that matches NonTerminal[_] is replaced by Tree, and every position
- * matching Terminal[_] is replaced by Token.
- * In this way, for an arbitrary tuple Tup, Tuple.Map[Tup, SymData] <:< SymBound[Tree, Token, Tup] holds
- * if and only if every position of Tup matches either NonTerminal[T <: Tree] or
- * Terminal[T <: Token]. */
-type SymBound[Tree, Token, Tup <: Tuple] = Tuple.Map[Tup, [x] =>> x match
-                                                       case NonTerminal[_] => Tree
-                                                       case Terminal[_] => Token ]
-
-type IsBoundedTuple[Tree, Token, Tup <: Tuple] = Tuple.Map[Tup, SymData] <:< SymBound[Tree, Token, Tup]
-
-/* Matches to true iff T is a NonTerminal[t <: Tree] or Terminal[t <: Token] */
+/* Checks if T is a NonTerminal[t <: Tree], a Terminal[t <: Token], or a tuple
+ * where each element matches one of those types. */
 type IsBounded[Tree, Token, T] = T match
   case NonTerminal[t] => t <:< Tree
   case Terminal[t] => t <:< Token
-
+  case Tuple => SymData[T] <:< Tuple.Map[T, [x] =>> x match
+                                           case NonTerminal[_] => Tree
+                                           case Terminal[_] => Token ]

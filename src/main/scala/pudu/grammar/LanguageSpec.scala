@@ -19,30 +19,27 @@ abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum](using scala.util.
 
   // Terminals are all Symbols in the right hand side of rules, minus the non terminals
   lazy val terminals =
-    val possibleTerminals = rules.flatMap(_.right) -- nonTerminals
-    val undefNonTerminals = possibleTerminals.filter(_.isInstanceOf[NonTerminal[_]])
+    val possiblyTerminals = rules.flatMap(_.right) -- nonTerminals
+    val undefNonTerminals = possiblyTerminals.filter(_.isInstanceOf[NonTerminal[_]])
     if !undefNonTerminals.isEmpty then
       throw UndefinedNonTerminalException(undefNonTerminals)
-    possibleTerminals
+    possiblyTerminals
 
   val start: Symbol
   val eof: Terminal[Token]
   val error: Terminal[Token]
   val precedence: Precedence = Precedence.empty
 
-  type TupSymData[T <: NonEmptyTuple] = Tuple.Map[T, SymData]
-
-  /** Rule definition methods. Given a NonTerminal left, a rule can be defined as
+  /** Rule definitions. Given a NonTerminal left, a rule can be defined as
     {{{    (left ::= (r1, r2, r3)) { (v1, v2 v3) => ... }      }}}
     * where the types of v1, v2, and v3 are inferred from 'r1', 'r2', and 'r3' */
-  extension [R <: Tree] (left: NonTerminal[R])
-    protected inline def ::= [Tup <: NonEmptyTuple] (inline right: Tup)(inline fn: TupSymData[Tup] => R)(using IsBoundedTuple[Tree, Token, Tup]): Unit =
-      rulesSet += Rule(left,
-                       right.toList.asInstanceOf[Seq[Symbol]], // this cast is safe by the IsBoundedTuple clause above
-                       toSeqFn(fn))
-    /* This is defined to allow syntax (left ::= right) for unit productions */
-    protected inline def ::= [T <: Symbol] (inline right: T)(inline fn: SymData[T] => R)(using IsBounded[Tree, Token, T]): Unit =
-      rulesSet += Rule(left, Seq(right), toSeqFn(fn))
+  extension [T <: Tree] (left: NonTerminal[T])
+    protected inline def ::= [Right] (inline right: Right)(inline fn: SymData[Right] => T)(using IsBounded[Tree, Token, Right]): Unit =
+      val rightSeq = inline right match
+        case s: Symbol => Seq(s)
+        case t: NonEmptyTuple => t.toList.asInstanceOf[Seq[Symbol]] // this cast is safe by the IsBounded clause above
+
+      rulesSet += Rule(left, rightSeq, toSeqFn(fn))
 
 case class UndefinedNonTerminalException(nonTerminals: Set[Symbol]) extends Exception:
   override def getMessage() =
