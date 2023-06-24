@@ -42,11 +42,11 @@ class LRReportTest extends munit.FunSuite {
 
   test("report all without conflicts") {
     val stub = new LRParserGenerator(SimpleArithmetic) {
-      override def closure(state: State): State = Set.empty
+      override def closure(state: StateT): StateT = Set.empty
       override val startState = Set.empty
       override def parser = ???
-      lazy val reduceActions: Map[(State, Terminal[Token]), Set[RuleT]] = Map.empty
-      override lazy val lrAutomaton: Map[(State, Symbol), State] = Map.empty
+      lazy val reduceActions: Map[(StateT, Terminal[Token]), Set[RuleT]] = Map.empty
+      override lazy val lrAutomaton: Map[(StateT, Symbol), StateT] = Map.empty
 
       val stubRule = rules.find(r => r.left == SimpleArithmetic.exprList && r.right.size == 1).get
       override lazy val indexedStates = Map(Set.empty -> 0,
@@ -76,11 +76,11 @@ class LRReportTest extends munit.FunSuite {
 
   test("report all with conflicts") {
     val stub = new LRParserGenerator(SimpleArithmetic) {
-      override def closure(state: State): State = Set.empty
+      override def closure(state: StateT): StateT = Set.empty
       override val startState = Set.empty
       override def parser = ???
-      lazy val reduceActions: Map[(State, Terminal[Token]), Set[RuleT]] = Map.empty
-      override lazy val lrAutomaton: Map[(State, Symbol), State] = Map.empty
+      lazy val reduceActions: Map[(StateT, Terminal[Token]), Set[RuleT]] = Map.empty
+      override lazy val lrAutomaton: Map[(StateT, Symbol), StateT] = Map.empty
 
       val stubRule = rules.find(r => r.left == SimpleArithmetic.exprList && r.right.size == 1).get
       override lazy val indexedStates = Map(Set.empty -> 0,

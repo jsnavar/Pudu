@@ -5,4 +5,4 @@ import pudu.grammar._
 
 /** Exercise for the reader :). It should be easy, as most of the work is already done in 'LRParserGenerator' */
 class LR0ParserGenerator[Tree, Token <: reflect.Enum](lang: LanguageSpec[Tree, Token]) extends LRParserGenerator(lang):
-  override lazy val reduceActions: Map[(State, Terminal[Token]), Set[RuleT]] = ???
+  override lazy val reduceActions: Map[(StateT, Terminal[Token]), Set[RuleT]] = ???

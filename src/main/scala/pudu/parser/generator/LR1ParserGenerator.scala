@@ -9,13 +9,13 @@ class LR1ParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
   override val startState = closure(Set(augmentedRule.toItem(eof)))
 
   /** state closure for LR1 parsers. */
-  override def closure(state: State): State =
+  override def closure(state: StateT): StateT =
     def firstSeq(seq: Seq[Symbol], next: Option[Symbol]) =
       if !seq.isEmpty then first(seq.head)
       else if next.isDefined then first(next.get)
       else Set.empty
 
-    def closureImpl(acc: State): State =
+    def closureImpl(acc: StateT): StateT =
       val step = for
         item <- acc
         if !item.after.isEmpty && isNonTerminal(item.after.head)
@@ -30,7 +30,7 @@ class LR1ParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[T
       else closureImpl(acc ++ step)
     closureImpl(state)
 
-  lazy val reduceActions: Map[(State, Terminal[Token]), Set[RuleT]] =
+  lazy val reduceActions: Map[(StateT, Terminal[Token]), Set[RuleT]] =
     /* First, we generate tuples (state, terminal, rule), such that there exists
      * an item X -> \alpha\cdot in state, and terminal\in FOLLOW(X). */
     val reduceByCases = for

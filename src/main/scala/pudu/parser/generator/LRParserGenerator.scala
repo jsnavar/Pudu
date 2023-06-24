@@ -3,29 +3,13 @@ package pudu.parser.generator
 import pudu.grammar._
 import pudu.parser._
 
-
-/** Items are rules with a dot somewhere in the right side. This is represented with two Seq, for before
- *  and after the dot */
-case class Item[Tree,Token <: reflect.Enum](left: Symbol, before: Seq[Symbol], after: Seq[Symbol], context: Option[Terminal[Token]], rule: Rule[Tree,Token]):
-  /** shifts the dot one place to the right. Caller must ensure that 'after' is not empty before calling */
-  def shift = Item(left, before :+ after.head, after.tail, context, rule)
-  override def toString =
-    def sp[T](seq: Seq[T]) = seq.mkString(" ")
-    val ctxStr = context.map(term => s" | ${term.toString}").getOrElse("")
-    s"$left ::= ${sp(before)} · ${sp(after)}${ctxStr}"
-
-extension[Tree, Token <: reflect.Enum] (rule: Rule[Tree, Token])
-  def toItem: Item[Tree, Token] = Item[Tree, Token](rule.left, Seq.empty[Symbol], rule.right, None, rule)
-  def toItem(ctx: Terminal[Token]) = Item[Tree, Token](rule.left, Seq.empty[Symbol], rule.right, Some(ctx), rule)
-
-
 /** Base class for LR parser generators (SLR, LR(1), LALR) */
 abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[Tree,Token]) extends ParserGenerator[Tree, Token]:
 
   type RuleT = Rule[Tree, Token]
-  type ItemT = Item[Tree, Token]
+  type ItemT = LRItem[Tree, Token]
   /** A state is just a set of Items. This may be changed in the future */
-  type State = Set[ItemT]
+  type StateT = State[Tree, Token]
 
   /* (StateIdx, TokenOrdinal) -> Set[Action] */
   type ActionTable = Map[(Int,Int), Set[SRAction]]
@@ -54,7 +38,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
   def isNonTerminal(symbol: Symbol) = nonTerminals.contains(symbol)
 
   /* start state is the closure of the augmented rule */
-  val startState: State = closure(Set(augmentedRule.toItem))
+  val startState: StateT = closure(Set(augmentedRule.toItem))
 
   /** maps a token ordinal to its name. This is only used to generate
    *  error messages, so it is declared as lazy */
@@ -66,10 +50,10 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
    */
 
   /** LR0 Closure of a state */
-  def closure(state: State): State =
+  def closure(state: StateT): StateT =
     stateClosure(state, rules.map(_.toItem))
 
-  def stateClosure(state: State, candidates: Set[ItemT]): State =
+  def stateClosure(state: StateT, candidates: Set[ItemT]): StateT =
     // First, we take the symbols after the dot for each item in 'state'
     val starting = state.filterNot(_.after.isEmpty).map(_.after.head)
     // Then, select the candidates whose left part is in the 'starting' set
@@ -79,7 +63,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     else stateClosure(state ++ newItems, candidates -- newItems)
 
   /** goto(state, symbol) follows the standard definition */
-  def goto(state: State, symbol: Symbol): State =
+  def goto(state: StateT, symbol: Symbol): StateT =
     // Take the items from 'state', where 'symbol' appears immediately after the dot
     val nextKernel = state.filterNot(_.after.isEmpty).filter(_.after.head == symbol)
     // Shift those items
@@ -89,16 +73,16 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
 
   /** computes the goto of every relevant symbol in 'state', returning a map such that
    *  goto(state)(symbol) equals goto(state, symbol) */
-  def goto(state: State): Map[(State, Symbol), State] =
+  def goto(state: StateT): Map[(StateT, Symbol), StateT] =
     state.filterNot(_.after.isEmpty)
       .groupBy(_.after.head)
       .map((symbol, gotoState) => ((state, symbol), closure(gotoState.map(_.shift))))
 
   /** Computes the LR automaton, i.e. a map that given a state and a symbol, returns
    *  the next state */
-  lazy val lrAutomaton: Map[(State, Symbol), State] =
-    def computeAutomaton(current: Map[(State, Symbol), State], computed: Set[State], frontier: Set[State]): Map[(State, Symbol), State] =
-      // Compute goto for each state in frontier, getting a Map[(State, Symbol), State] with all the results
+  lazy val lrAutomaton: Map[(StateT, Symbol), StateT] =
+    def computeAutomaton(current: Map[(StateT, Symbol), StateT], computed: Set[StateT], frontier: Set[StateT]): Map[(StateT, Symbol), StateT] =
+      // Compute goto for each state in frontier, getting a Map[(StateT, Symbol), StateT] with all the results
       val newEdges = frontier.flatMap(goto)
       // Finds all states reached in the previous step, that had not been visited before
       val newStates = newEdges.map(_._2) -- computed
@@ -165,24 +149,24 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
    */
 
   /** builds the action table key */
-  def actionTableKey(from: State, terminal: Terminal[Token]) =
+  def actionTableKey(from: StateT, terminal: Terminal[Token]) =
     val fromIdx = indexedStates(from)
     val terminalOrdinal = terminal.ordinal
     (fromIdx, terminalOrdinal)
 
   /** Action table entry for shift actions */
-  def shiftTo(from: State, terminal: Terminal[Token], to: State): ActionTableEntry =
+  def shiftTo(from: StateT, terminal: Terminal[Token], to: StateT): ActionTableEntry =
     val key = actionTableKey(from, terminal)
     val toIdx = indexedStates(to)
     key -> Set(SRAction.Shift(toIdx))
 
   /** Action table entry for reduce actions */
-  def reduceBy(from: State, terminal: Terminal[Token], rule: RuleT): ActionTableEntry =
+  def reduceBy(from: StateT, terminal: Terminal[Token], rule: RuleT): ActionTableEntry =
     val key = actionTableKey(from, terminal)
     key -> Set(SRAction.Reduce(rule))
 
   /** Action table entry for accept action */
-  def acceptOn(acceptState: State): ActionTableEntry =
+  def acceptOn(acceptState: StateT): ActionTableEntry =
     val key = actionTableKey(acceptState, eof)
     key -> Set(SRAction.Accept)
 
@@ -193,7 +177,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
 
   /** uses precedence to solve shift reduce conflicts. Default is to shift, in
    *  accordance to tradition (https://www.gnu.org/software/bison/manual/html_node/How-Precedence.html) */
-  def shiftReduceResolution(from: State, to: State)(rule: RuleT, terminal: Terminal[Token]): ActionTableEntry =
+  def shiftReduceResolution(from: StateT, to: StateT)(rule: RuleT, terminal: Terminal[Token]): ActionTableEntry =
     val lastTerminalOfRule = rule.right.findLast(isTerminal)
     if !lastTerminalOfRule.isDefined then
       // shift by default
@@ -204,16 +188,16 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
       case Side.Neither => shiftTo(from, terminal, to) // shift by default
       case Side.Error => shiftTo(from, terminal, to).merge(reduceBy(from, terminal, rule))
 
-  lazy val reduceActions: Map[(State, Terminal[Token]), Set[RuleT]]
+  lazy val reduceActions: Map[(StateT, Terminal[Token]), Set[RuleT]]
 
   lazy val (actionTable, gotoTable) =
     type LRTables = (ActionTable, GotoTable)
 
-    def reduceTableEntry(from: State, terminal: Terminal[Token], rules: Set[RuleT]): ActionTableEntry =
+    def reduceTableEntry(from: StateT, terminal: Terminal[Token], rules: Set[RuleT]): ActionTableEntry =
       actionTableKey(from, terminal) -> rules.map(SRAction.Reduce(_)).toSet[SRAction]
 
     /* Update LRTables for a given LR automaton edge */
-    def updateTables(tables: LRTables, edge: ((State, Symbol), State)): LRTables =
+    def updateTables(tables: LRTables, edge: ((StateT, Symbol), StateT)): LRTables =
       val ((fromState, symbol), toState) = edge
       val (actionsTable, gotoTable) = tables
 
