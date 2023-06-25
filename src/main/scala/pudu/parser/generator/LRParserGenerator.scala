@@ -4,12 +4,17 @@ import pudu.grammar._
 import pudu.parser._
 
 /** Base class for LR parser generators (SLR, LR(1), LALR) */
-abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tree,Token]) extends ParserGenerator[Tree, Token]:
+class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tree,Token],
+                                                           lrAutomaton: Map[(State[Tree, Token], Symbol), State[Tree, Token]],
+                                                           indexedStates: Map[State[Tree, Token], Int],
+                                                           reduceActions: Map[(State[Tree, Token], Terminal[Token]), Set[Rule[Tree, Token]]]):
+  import grammar.{eof, isTerminal, precedence, error}
 
   type RuleT = Rule[Tree, Token]
   type ItemT = LRItem[Tree, Token]
-  /** A state is just a set of Items. This may be changed in the future */
   type StateT = State[Tree, Token]
+
+  val tokenNames = grammar.terminalNames
 
   /* (StateIdx, TokenOrdinal) -> Set[Action] */
   type ActionTable = Map[(Int,Int), Set[SRAction]]
@@ -21,123 +26,6 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Gra
   type GotoTable = Map[(Int,Symbol), Int]
   /* ((stateIndex, nonTerminalSymbol), stateIndex) */
   type GotoTableEntry = ((Int, Symbol), Int)
-
-  /* Grammar is augmented with a new start symbol */
-  import grammar.{eof, error, precedence, terminals, nonTerminals, isTerminal, isNonTerminal, startRules, terminalNames}
-  require(startRules.size == 1 && startRules.head.right.size == 1)
-
-  val startSymbol = grammar.startSymbol
-  val langStart = startRules.head.right.head
-
-  val rules = grammar.rules
-
-  /* start state is the closure of the augmented rule */
-  val startState: StateT = closure(startRules.map(_.toItem))
-
-  val tokenNames = grammar.terminalNames
-
-  /*
-   * Auxiliary functions
-   */
-
-  /** LR0 Closure of a state */
-  def closure(state: StateT): StateT =
-    stateClosure(state, rules.map(_.toItem))
-
-  def stateClosure(state: StateT, candidates: Set[ItemT]): StateT =
-    // First, we take the symbols after the dot for each item in 'state'
-    val starting = state.filterNot(_.after.isEmpty).map(_.after.head)
-    // Then, select the candidates whose left part is in the 'starting' set
-    val newItems = candidates.filter(item => starting.contains(item.left))
-    // Continue recursively until no more items are added
-    if newItems.isEmpty then state
-    else stateClosure(state ++ newItems, candidates -- newItems)
-
-  /** goto(state, symbol) follows the standard definition */
-  def goto(state: StateT, symbol: Symbol): StateT =
-    // Take the items from 'state', where 'symbol' appears immediately after the dot
-    val nextKernel = state.filterNot(_.after.isEmpty).filter(_.after.head == symbol)
-    // Shift those items
-    val shifted = nextKernel.map(_.shift)
-    // And compute the closure
-    closure(shifted)
-
-  /** computes the goto of every relevant symbol in 'state', returning a map such that
-   *  goto(state)(symbol) equals goto(state, symbol) */
-  def goto(state: StateT): Map[(StateT, Symbol), StateT] =
-    state.filterNot(_.after.isEmpty)
-      .groupBy(_.after.head)
-      .map((symbol, gotoState) => ((state, symbol), closure(gotoState.map(_.shift))))
-
-  /** Computes the LR automaton, i.e. a map that given a state and a symbol, returns
-   *  the next state */
-  lazy val lrAutomaton: Map[(StateT, Symbol), StateT] =
-    def computeAutomaton(current: Map[(StateT, Symbol), StateT], computed: Set[StateT], frontier: Set[StateT]): Map[(StateT, Symbol), StateT] =
-      // Compute goto for each state in frontier, getting a Map[(StateT, Symbol), StateT] with all the results
-      val newEdges = frontier.flatMap(goto)
-      // Finds all states reached in the previous step, that had not been visited before
-      val newStates = newEdges.map(_._2) -- computed
-      // Continue until no new state is found
-      if newStates.isEmpty then current ++ newEdges
-      else
-        computeAutomaton(current ++ newEdges, computed ++ frontier, newStates)
-    computeAutomaton(Map.empty, Set.empty, Set(startState))
-
-  lazy val indexedStates =
-    val nonStartingStates = lrAutomaton.values.toSet
-    val states = nonStartingStates + startState
-    val numOfStates = states.size
-    nonStartingStates.zip(1 until numOfStates).toMap + (startState -> 0)
-
-  /** Given a set of pairs 'current: Set[(L, R)]', and a graph 'edges: Set[(L, L)]',
-   *  this function computes:
-   *  { (x: L, y: R) | there exists z: L, such that z is reachable from x on 'edges', and (z,y)\in 'current' } */
-  def lfp[L, R](edges: Set[(L, L)], current: Set[(L, R)]): Set[(L,R)] =
-    //compute the new pairs
-    val next = for
-      (el, er) <- edges
-      (cl, cr) <- current
-      if er == cl
-      if !current.contains((el, cr))
-    yield (el, cr)
-    if next.isEmpty then current
-    else lfp(edges, current ++ next)
-
-  type SymPair = (Symbol, Symbol)
-  /** Given a set of pairs (a,b), groupPairs returns a map:
-   *  {a -> s| s contains all elements b, such that (a,b)\in pairs} */
-  def groupPairs[L, R](pairs: Set[(L,R)]): Map[L, Set[R]] =
-    pairs.groupMapReduce(_._1)((p: (L,R)) => Set(p._2))(_ ++ _)
-
-  /** Pudu does not support null productions, so FIRST reduces to reachability
-   *  in the graph given by the first symbol of each production. */
-  lazy val first: Map[Symbol, Set[Terminal[Token]]] =
-    val edges: Set[SymPair] = rules.map(rule => rule.left -> rule.right.head)
-    /* The LFP starts from {(t,t)| t is a terminal} */
-    val start = terminals.map(t => t -> t.asInstanceOf[Terminal[Token]])
-    groupPairs(lfp(edges, start))
-
-  /** FOLLOW is also computed as reachability but with reversed edges: from the last
-   *  symbol of the rhs to the left symbol. This follows the definition,
-   *  because for each production X ::= ...Z, FOLLOW(X)\subseteq FOLLOW(Z) */
-  lazy val follow: Map[Symbol, Set[Terminal[Token]]] =
-    val edges: Set[SymPair] = rules.filter(rule => isNonTerminal(rule.right.last))
-      .map(rule => rule.right.last -> rule.left)
-    /* the starting set is
-     * { (N, T): there exists a production U ::= ...Nz..., and T\in FIRST(z) } */
-    val start = for
-      rule <- rules
-      if rule.right.size >= 2
-      pair <- rule.right.sliding(2)
-      if isNonTerminal(pair(0))
-      elem <- first(pair(1))
-    yield (pair(0), elem)
-    val startPairs = start + (startSymbol -> eof) // S' -> $ is in follow by definition
-    groupPairs(lfp(edges, startPairs))
-
-  /*
-   * Parsing tables
-   */
 
   /** builds the action table key */
   def actionTableKey(from: StateT, terminal: Terminal[Token]) =
@@ -178,8 +66,6 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Gra
       case Side.Right => shiftTo(from, terminal, to)
       case Side.Neither => shiftTo(from, terminal, to) // shift by default
       case Side.Error => shiftTo(from, terminal, to).merge(reduceBy(from, terminal, rule))
-
-  lazy val reduceActions: Map[(StateT, Terminal[Token]), Set[RuleT]]
 
   lazy val (actionTable, gotoTable) =
     type LRTables = (ActionTable, GotoTable)
@@ -227,6 +113,12 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Gra
     val (partialActionTable, gotoTable) = lrAutomaton.foldLeft((reduce, Map.empty))(updateTables)
 
     // add accept condition
+    // the start state always has index 0
+    val startState = indexedStates.find((_, v) => v == 0).get._1
+
+    // as the grammar is augmented, grammar.startRules contains
+    // only one rule, of the form S' -> S
+    val langStart = grammar.startRules.head.right.head
     val acceptState = lrAutomaton(startState, langStart)
     val acceptEntry = acceptOn(acceptState)
 
@@ -283,7 +175,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Gra
     val actions: ActionTableSingle =
       if actionTable.exists(_._2.size != 1) then
         val writeTo = "target/pudu/report"
-        val report = LRReport(this).writeAllToFile(writeTo)
+//        val report = LRReport(this).writeAllToFile(writeTo)
 
         throw UnresolvedConflictException(writeTo)
       else actionTable.map((k,v) => k -> v.head)

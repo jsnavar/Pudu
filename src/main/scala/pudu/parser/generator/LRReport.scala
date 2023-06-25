@@ -4,7 +4,7 @@ import pudu.parser._
 import pudu.grammar._
 
 /** Generates a human readable report on parser */
-class LRReport[Tree, Token <: reflect.Enum](parser: LRParserGenerator[Tree, Token]):
+class LRReport[Tree, Token <: reflect.Enum](parser: LRParserGenerator[Tree, Token])/*:
 
   private def indentNL[T](ntabs: Int, c: Iterable[T]): String =
     c.map(x => "\t" * ntabs + x).mkString("\n")
@@ -93,3 +93,4 @@ class LRReport[Tree, Token <: reflect.Enum](parser: LRParserGenerator[Tree, Toke
           printer.print(all)
           printer.close()
         case _ => ()
+*/

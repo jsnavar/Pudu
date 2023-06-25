@@ -26,16 +26,9 @@ class LR1ParserGeneratorTest extends munit.FunSuite {
     (cc ::= (c, cc)) { _ => "c1" }
     (cc ::= d) { _ => "d" }
 
-
-  test("first") {
-    val lr1 = LR1ParserGenerator(Example.grammar.augmented)
-    assertEquals(lr1.first(Example.ss), Set(Example.c, Example.d))
-    assertEquals(lr1.first(Example.cc), Set(Example.c, Example.d))
-  }
-
   test("lr1 closure and start state") {
-    val grammar = Example.grammar.augmented
-    val lr1 = LR1ParserGenerator(grammar)
+    val lr1 = LR1ParserGenerator(Example.grammar)
+    val grammar = lr1.augmentedGrammar
 
     val ag = grammar.startRules.head
     val sr = grammar.rules.filter(_.left == Example.ss).head // ss ::= cc cc
