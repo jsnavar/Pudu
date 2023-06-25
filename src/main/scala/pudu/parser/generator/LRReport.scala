@@ -5,14 +5,12 @@ import pudu.grammar._
 
 /** Generates a human readable report on a parser generator */
 class LRReport[Tree, Token <: reflect.Enum](
-  _rules: => Set[Rule[Tree, Token]],
-  _tokenNames: => Map[Int, String],
-  _first: => Map[Symbol, Set[Terminal[Token]]],
-  _follow: => Map[Symbol, Set[Terminal[Token]]],
-  _indexedStates: => Map[State[Tree, Token], Int],
-  _lrAutomaton: => Map[(State[Tree, Token], Symbol), State[Tree, Token]],
-  _actionTable: => Map[(Int,Int), Set[SRAction]],
-  _gotoTable: => Map[(Int,Symbol), Int]):
+  _rules: Set[Rule[Tree, Token]],
+  _tokenNames: Map[Int, String],
+  _indexedStates: Map[State[Tree, Token], Int],
+  _lrAutomaton: Map[(State[Tree, Token], Symbol), State[Tree, Token]],
+  _actionTable: Map[(Int,Int), Set[SRAction]],
+  _gotoTable: Map[(Int,Symbol), Int]):
 
   private def indentNL[T](ntabs: Int, c: Iterable[T]): String =
     c.map(x => "\t" * ntabs + x).mkString("\n")
@@ -28,20 +26,6 @@ class LRReport[Tree, Token <: reflect.Enum](
       .map{ case (state, idx) =>
              s"\tState $idx:\n" + indentNL(2, state)}
       .mkString("\n\n")
-
-  lazy val first: String =
-    _first.map {
-      case (symbol, fs) =>
-        val fsString = fs.mkString(", ")
-        s"\tFIRST[$symbol] = \n\t\t{ ${fsString} }"
-    }.mkString("\n")
-
-  lazy val follow: String =
-    _follow.map {
-      case (symbol, fs) =>
-        val fsString = fs.mkString(", ")
-        s"\tFOLLOW[$symbol] = \n\t\t{ ${fsString} }"
-    }.mkString("\n")
 
   lazy val lrAutomaton: String =
     _lrAutomaton.map {
@@ -86,18 +70,18 @@ class LRReport[Tree, Token <: reflect.Enum](
       .mkString("\n\n")
 
   def writeAllToFile(path: String): Unit =
-    import scala.util.{Try, Success, Failure}
+    import scala.util.Try
     import java.io.{File, PrintWriter}
 
     Try {
       val file = File(path)
       val dir = File(file.getParent())
       dir.mkdirs()
-      PrintWriter(file) } match
-        case Success(printer) =>
-          printer.print("Productions:\n")
-          printer.print(rules)
-          printer.print("\nStates:\n")
-          printer.print(all)
-          printer.close()
-        case _ => ()
+      PrintWriter(file)
+    } map { printer =>
+      printer.print("Productions:\n")
+      printer.print(rules)
+      printer.print("\nStates:\n")
+      printer.print(all)
+      printer.close()
+    }

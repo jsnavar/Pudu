@@ -29,7 +29,7 @@ class IntTest extends munit.FunSuite {
 
     result match
       case Left(err) => assert(err.isInstanceOf[ErrorMsg.SyntaxError[_]])
-      case _ => fail(s"Input '$input' should fail (syntax error)")
+      case _ => fail(s"Input '$input' should result in a syntax error")
   }
 
   test("lex error") {
@@ -38,7 +38,7 @@ class IntTest extends munit.FunSuite {
 
     result match
       case Left(err) => assertEquals(err, ErrorMsg.LexError(Token.ERROR("_")))
-      case _ => fail(s"Input '$input' should fail (lex error)")
+      case _ => fail(s"Input '$input' should result in a lexical error")
   }
 
   test("ended unexpectedly error") {

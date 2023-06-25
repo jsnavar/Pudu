@@ -22,18 +22,6 @@ class LRReportTest extends munit.FunSuite {
     assertEquals(indexedStates.size, count)
   }
 
-  test("first size") {
-    val header = "FIRST".r
-    val count = header.findAllMatchIn(report.first).size
-    assertEquals(gen.lrff.first.size, count)
-  }
-
-  test("follow size") {
-    val header = "FOLLOW".r
-    val count = header.findAllMatchIn(report.follow).size
-    assertEquals(gen.lrff.follow.size, count)
-  }
-
   test("lr automaton size") {
     assertEquals(gen.lra.lrAutomaton.size, 1 + report.lrAutomaton.count(_ == '\n'))
   }
@@ -47,8 +35,6 @@ class LRReportTest extends munit.FunSuite {
     val stubRule = grammar.rules.find(r => r.left == SimpleArithmetic.exprList && r.right.size == 1).get
     val report = LRReport(grammar.rules,
                           grammar.terminalNames,
-                          Map.empty,
-                          Map.empty,
                           Map(Set.empty -> 0,
                               Set(stubRule.toItem(SimpleArithmetic.eof).shift) -> 1,
                               Set.empty -> 2),
@@ -78,8 +64,6 @@ class LRReportTest extends munit.FunSuite {
     val stubRule = grammar.rules.find(r => r.left == SimpleArithmetic.exprList && r.right.size == 1).get
     val report = LRReport(grammar.rules,
                           grammar.terminalNames,
-                          Map.empty,
-                          Map.empty,
                           Map(Set.empty -> 0,
                               Set(stubRule.toItem(SimpleArithmetic.eof).shift) -> 1,
                               Set.empty -> 2),
