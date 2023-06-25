@@ -33,4 +33,13 @@ class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tre
 
   val parserGen = LRParserGenerator(augmentedGrammar, lra.lrAutomaton, lra.indexedStates, reduceActions)
 
+  def report = LRReport(augmentedGrammar.rules,
+                        augmentedGrammar.terminalNames,
+                        lrff.first,
+                        lrff.follow,
+                        lra.indexedStates,
+                        lra.lrAutomaton,
+                        parserGen.actionTable,
+                        parserGen.gotoTable)
+
   def parser = parserGen.parser

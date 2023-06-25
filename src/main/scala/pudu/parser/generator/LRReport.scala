@@ -3,8 +3,16 @@ package pudu.parser.generator
 import pudu.parser._
 import pudu.grammar._
 
-/** Generates a human readable report on parser */
-class LRReport[Tree, Token <: reflect.Enum](parser: LRParserGenerator[Tree, Token])/*:
+/** Generates a human readable report on a parser generator */
+class LRReport[Tree, Token <: reflect.Enum](
+  _rules: => Set[Rule[Tree, Token]],
+  _tokenNames: => Map[Int, String],
+  _first: => Map[Symbol, Set[Terminal[Token]]],
+  _follow: => Map[Symbol, Set[Terminal[Token]]],
+  _indexedStates: => Map[State[Tree, Token], Int],
+  _lrAutomaton: => Map[(State[Tree, Token], Symbol), State[Tree, Token]],
+  _actionTable: => Map[(Int,Int), Set[SRAction]],
+  _gotoTable: => Map[(Int,Symbol), Int]):
 
   private def indentNL[T](ntabs: Int, c: Iterable[T]): String =
     c.map(x => "\t" * ntabs + x).mkString("\n")
@@ -13,43 +21,43 @@ class LRReport[Tree, Token <: reflect.Enum](parser: LRParserGenerator[Tree, Toke
     if entries.size == 1 then entries.head.toString
     else s"[${entries.mkString(", ")}]"
 
-  lazy val rules: String = indentNL(1, parser.rules)
+  lazy val rules: String = indentNL(1, _rules)
 
   lazy val states: String =
-    parser.indexedStates.toSeq.sortBy(_._2)
+    _indexedStates.toSeq.sortBy(_._2)
       .map{ case (state, idx) =>
              s"\tState $idx:\n" + indentNL(2, state)}
       .mkString("\n\n")
 
   lazy val first: String =
-    parser.first.map {
+    _first.map {
       case (symbol, fs) =>
         val fsString = fs.mkString(", ")
         s"\tFIRST[$symbol] = \n\t\t{ ${fsString} }"
     }.mkString("\n")
 
   lazy val follow: String =
-    parser.follow.map {
+    _follow.map {
       case (symbol, fs) =>
         val fsString = fs.mkString(", ")
         s"\tFOLLOW[$symbol] = \n\t\t{ ${fsString} }"
     }.mkString("\n")
 
   lazy val lrAutomaton: String =
-    parser.lrAutomaton.map {
+    _lrAutomaton.map {
       case ((from, symbol), to) =>
-        val fromIdx = parser.indexedStates(from)
-        val toIdx = parser.indexedStates(to)
+        val fromIdx = _indexedStates(from)
+        val toIdx = _indexedStates(to)
         s"\t(State: $fromIdx, Symbol: $symbol) => State: $toIdx"
     }.mkString("\n")
 
   lazy val actionTable: String =
     def actionString(key: (Int, Int), actions: Set[SRAction]) =
       val (state, ordinal) = key
-      val tokName = parser.tokenNames.getOrElse(ordinal, "UNK")
+      val tokName = _tokenNames.getOrElse(ordinal, "UNK")
       val actionsStr = iterToStr(actions)
       s"(state($state), $tokName) --> $actionsStr"
-    indentNL(1, parser.actionTable.map(actionString))
+    indentNL(1, _actionTable.map(actionString))
 
   lazy val all: String =
     /* transform a Map[(K1, K2), V] to a Map[K1, Set((K2, V))] */
@@ -57,19 +65,19 @@ class LRReport[Tree, Token <: reflect.Enum](parser: LRParserGenerator[Tree, Toke
       table.groupMap(_._1._1)
                     (entry => (entry._1._2 -> entry._2))
 
-    val actions = groupTable(parser.actionTable)
-    val goto = groupTable(parser.gotoTable)
+    val actions = groupTable(_actionTable)
+    val goto = groupTable(_gotoTable)
 
     /* strings for actions and goto entries */
     def actionString(ordinal: Int, actions: Set[SRAction]) =
-      val tokName = parser.tokenNames.getOrElse(ordinal, "UNK")
+      val tokName = _tokenNames.getOrElse(ordinal, "UNK")
       val actionsStr = iterToStr(actions)
       s"on $tokName --> $actionsStr"
     def gotoString(nt: Symbol, toState: Int) =
       s"if ${nt} goto ${toState}"
 
     /* generate report */
-    parser.indexedStates.toSeq.sortBy(_._2)
+    _indexedStates.toSeq.sortBy(_._2)
       .map { case (state, idx) => s"\tState $idx:\n" +
                Seq(indentNL(2, state),
                    indentNL(2, actions.getOrElse(idx, Set.empty).map(actionString)),
@@ -93,4 +101,3 @@ class LRReport[Tree, Token <: reflect.Enum](parser: LRParserGenerator[Tree, Toke
           printer.print(all)
           printer.close()
         case _ => ()
-*/

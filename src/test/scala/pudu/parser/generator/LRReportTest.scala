@@ -6,61 +6,59 @@ import scala.util.matching._
 // import org.scalatest.mockito.MockitoSugar // no Scala 3 support :(
 // import org.mockito.Mockito._
 
-class LRReportTest extends munit.FunSuite {/*
+class LRReportTest extends munit.FunSuite {
   val gen = SLRParserGenerator(SimpleArithmetic.grammar.augmented)
-  val report = LRReport(gen)
+  val report = gen.report
 
   test("number of rules") {
-    assertEquals(gen.rules.size, 1 + report.rules.count(_ == '\n'))
+    val rules = gen.augmentedGrammar.rules
+    assertEquals(rules.size, 1 + report.rules.count(_ == '\n'))
   }
 
   test("number of states") {
     val header = "State [0-9]+".r
     val count = header.findAllMatchIn(report.states).size
-    assertEquals(gen.indexedStates.size, count)
+    val indexedStates = gen.lra.indexedStates
+    assertEquals(indexedStates.size, count)
   }
 
   test("first size") {
     val header = "FIRST".r
     val count = header.findAllMatchIn(report.first).size
-    assertEquals(gen.first.size, count)
+    assertEquals(gen.lrff.first.size, count)
   }
 
   test("follow size") {
     val header = "FOLLOW".r
     val count = header.findAllMatchIn(report.follow).size
-    assertEquals(gen.follow.size, count)
+    assertEquals(gen.lrff.follow.size, count)
   }
 
   test("lr automaton size") {
-    assertEquals(gen.lrAutomaton.size, 1 + report.lrAutomaton.count(_ == '\n'))
+    assertEquals(gen.lra.lrAutomaton.size, 1 + report.lrAutomaton.count(_ == '\n'))
   }
 
   test("actions table size") {
-    assertEquals(gen.actionTable.size, 1 + report.actionTable.count(_ == '\n'))
+    assertEquals(gen.parserGen.actionTable.size, 1 + report.actionTable.count(_ == '\n'))
   }
 
   test("report all without conflicts") {
-    val stub = new LRParserGenerator(SimpleArithmetic.grammar.augmented) {
-      override def closure(state: StateT): StateT = Set.empty
-      override val startState = Set.empty
-      override def parser = ???
-      val eof = SimpleArithmetic.grammar.eof
-      lazy val reduceActions: Map[(StateT, Terminal[Token]), Set[RuleT]] = Map.empty
-      override lazy val lrAutomaton: Map[(StateT, Symbol), StateT] = Map.empty
+    val grammar = SimpleArithmetic.grammar.augmented
+    val stubRule = grammar.rules.find(r => r.left == SimpleArithmetic.exprList && r.right.size == 1).get
+    val report = LRReport(grammar.rules,
+                          grammar.terminalNames,
+                          Map.empty,
+                          Map.empty,
+                          Map(Set.empty -> 0,
+                              Set(stubRule.toItem(SimpleArithmetic.eof).shift) -> 1,
+                              Set.empty -> 2),
+                          Map.empty,
+                          Map((1,1) -> Set(SRAction.Accept),
+                              (1,2) -> Set(SRAction.Shift(3)),
+                              (2,1) -> Set(SRAction.Reduce(stubRule)),
+                              (2,3) -> Set(SRAction.Reduce(stubRule))),
+                          Map((1, SimpleArithmetic.expr) -> 2))
 
-      val stubRule = rules.find(r => r.left == SimpleArithmetic.exprList && r.right.size == 1).get
-      override lazy val indexedStates = Map(Set.empty -> 0,
-                                            Set(stubRule.toItem(eof).shift) -> 1,
-                                            Set.empty -> 2)
-      override lazy val actionTable = Map((1,1) -> Set(SRAction.Accept),
-                                          (1,2) -> Set(SRAction.Shift(3)),
-                                          (2,1) -> Set(SRAction.Reduce(stubRule)),
-                                          (2,3) -> Set(SRAction.Reduce(stubRule)))
-      override lazy val gotoTable = Map((1, SimpleArithmetic.expr) -> 2)
-    }
-
-    val report = LRReport(stub)
     val expected = """	State 1:
 		ExprList ::= Expr ·  | EOF
 		---
@@ -76,26 +74,22 @@ class LRReportTest extends munit.FunSuite {/*
   }
 
   test("report all with conflicts") {
-    val stub = new LRParserGenerator(SimpleArithmetic.grammar.augmented) {
-      override def closure(state: StateT): StateT = Set.empty
-      override val startState = Set.empty
-      override def parser = ???
-      val eof = SimpleArithmetic.grammar.eof
-      lazy val reduceActions: Map[(StateT, Terminal[Token]), Set[RuleT]] = Map.empty
-      override lazy val lrAutomaton: Map[(StateT, Symbol), StateT] = Map.empty
+    val grammar = SimpleArithmetic.grammar.augmented
+    val stubRule = grammar.rules.find(r => r.left == SimpleArithmetic.exprList && r.right.size == 1).get
+    val report = LRReport(grammar.rules,
+                          grammar.terminalNames,
+                          Map.empty,
+                          Map.empty,
+                          Map(Set.empty -> 0,
+                              Set(stubRule.toItem(SimpleArithmetic.eof).shift) -> 1,
+                              Set.empty -> 2),
+                          Map.empty,
+                          Map((1,1) -> Set(SRAction.Accept),
+                              (1,2) -> Set(SRAction.Shift(3), SRAction.Shift(4)),
+                              (2,1) -> Set(SRAction.Reduce(stubRule)),
+                              (2,3) -> Set(SRAction.Reduce(stubRule))),
+                          Map((1, SimpleArithmetic.expr) -> 2))
 
-      val stubRule = rules.find(r => r.left == SimpleArithmetic.exprList && r.right.size == 1).get
-      override lazy val indexedStates = Map(Set.empty -> 0,
-                                            Set(stubRule.toItem(eof).shift) -> 1,
-                                            Set.empty -> 2)
-      override lazy val actionTable = Map((1,1) -> Set(SRAction.Accept),
-                                          (1,2) -> Set(SRAction.Shift(3), SRAction.Shift(4)),
-                                          (2,1) -> Set(SRAction.Reduce(stubRule)),
-                                          (2,3) -> Set(SRAction.Reduce(stubRule)))
-      override lazy val gotoTable = Map((1, SimpleArithmetic.expr) -> 2)
-    }
-
-    val report = LRReport(stub)
     val template = """	State 1:
 		ExprList ::= Expr ·  | EOF
 		---
@@ -111,6 +105,4 @@ class LRReportTest extends munit.FunSuite {/*
                            template.replace("<v1>", "4").replace("<v2>", "3"))
     assert(alternatives.contains(report.all))
   }
-*/
-
 }
