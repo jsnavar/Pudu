@@ -4,9 +4,9 @@
 
 Shift-reduce parser and lexer generators in Scala 3, featuring type checked semantic actions, similar syntax for lexers and parsers, and a modular design with simple interfaces.
 
-Pudu was modelled after [Flex](https://github.com/westes/flex) and [Bison](https://www.gnu.org/software/bison/), but implemented as a library instead of a separate program: in Pudu all definitions —tokens, lexers, parsers and actions— are declared using standard Scala code. This simplifies the usage and development of the library, but comes with a few drawbacks in comparison with Flex and Bison. Maybe the most important one is that a program using Pudu includes the *specification* of the parser, but not the parser itself, which needs to be generated in each execution. Most of the times, this can be avoided using serialization, by saving the serialized parser to a file, and reading it back later, but that is not a very clean solution. Nevertheless, as Pudu is intended to be a learning tool, we do not concern ourselves with that problem.
+Pudu was modeled after [Flex](https://github.com/westes/flex) and [Bison](https://www.gnu.org/software/bison/), but implemented as a library instead of a separate program: in Pudu all definitions —tokens, lexers, parsers and actions— are declared using standard Scala code. This simplifies the usage and development of the library, but comes with a few drawbacks in comparison with Flex and Bison. Maybe the most important one is that a program using Pudu includes the *specification* of the parser, but not the parser itself, which needs to be generated in each execution. Most of the times, this can be avoided using serialization, by saving the serialized parser to a file, and reading it back later, but that is not a very clean solution. Nevertheless, as Pudu is intended to be a learning tool, we do not concern ourselves with that problem.
 
-A complete example application using Pudu is available at [PuduCalc](https://github.com/jsnavar/PuduCalc).
+A complete example application using Pudu can be found at [PuduCalc](https://github.com/jsnavar/PuduCalc).
 
 ## Distribution
 Pudu is being distributed through [Github Packages](https://github.com/features/packages) and can be obtained using the [sbt-github-packages](https://github.com/djspiewak/sbt-github-packages) plugin. See PuduCalc  ([build.sbt](https://github.com/jsnavar/PuduCalc/blob/main/build.sbt)) for an example.
@@ -20,10 +20,10 @@ enum Example:
   case SomeCase(x: Int)
   case AnotherCase(y: String, z: Something)
 ```
-How do we find the ordinal of a case using only its type (i.e. without an actual object)?. Here, the idea is to have a function `enumOrdinal` such that `enumOrdinal[Example.SomeCase] == 0`, and `enumOrdinal[Example.AnotherCase] == 1`.
+How do we find the ordinal of a case using only its type (i.e., without an actual object)?. Here, the idea is to have a function `enumOrdinal` such that `enumOrdinal[Example.SomeCase] == 0`, and `enumOrdinal[Example.AnotherCase] == 1`.
 
 ### Giter8 template
-To make all this easier, we provide a [giter8](https://github.com/foundweekends/giter8) template which creates an empty project with the right options. To use it, just execute:
+A [giter8](https://github.com/foundweekends/giter8) template is provided to simplify the creation of new projects using Pudu. To use it, just run:
 ```
 sbt new jsnavar/Pudu.g8
 ```
@@ -70,7 +70,7 @@ enum Token:
 ```
 ### Lexer
 
-Specifying a lexer requires to list regular expressions paired with *operations*, which can be of two kinds: to generate a token or to ignore the matched string. Given a regular expression as a `String`, the operations are declared using the following extension methods:
+Specifying a lexer requires to list regular expressions paired with *operations*, which can be of two kinds: to generate a token, or to ignore the matched string. Given a regular expression as a `String`, the operations are declared with the following extension methods:
 ```scala
   extension (pattern: String)
     protected def apply(fn: String => Token) = ... // (1)
@@ -89,7 +89,7 @@ There, the regex "," only matches the string ",", so the function always returns
 ```
 Method (3) simply ignores the matched string, and method (4) calls `fn` on the ignored string, which can be useful for side effects such as updating positions.
 
-As anticipated above, the lexer needs to know the end of file token, which is declared by overriding the method `def eof: Token`. This method is called automatically when the input ends, so it is not necessary to add an explicit rule for it.
+As anticipated before, the lexer needs to know the end of file token, which is declared by overriding the method `def eof: Token`. This method is called automatically when the input ends, so it is not necessary to add an explicit rule for it.
 
 Continuing the previous example, the lexer corresponding to `Token` could be:
 ```scala
@@ -110,11 +110,11 @@ object ArithmeticLexer extends Lexer[Token]:
 ```
 
 **About Lexer Semantics:**
-Given a string and a set of regular expressions, there may be more than one tokenization of the input. For example, consider the string `"2-1"` which can be tokenized as `(IntLiteral(2), Minus, IntLiteral(1))`, or `(IntLiteral(2), IntLiteral(-1))`. This opens the problem of how to choose the *right* tokenization, which can not be solved by the lexer itself as the answer depends on the grammar: in many languages, the first tokenization of the example is a valid expression while the second is not. Taking this into account, we follow the tradition of lex and flex, and use a greedy approach, where in each iteration, the lexer grabs the longest prefix that is matched by a regex, continuing until the string ends, or no match is found. In both cases, Pudu marks the end with the eof token.
+Given a string and a set of regular expressions, there may be more than one tokenization of the input. For a common example, consider the string `"2-1"` which can be tokenized as `(IntLiteral(2), Minus, IntLiteral(1))`, or `(IntLiteral(2), IntLiteral(-1))`. This opens the problem of how to choose the *right* tokenization, which can not be solved by the lexer itself as the answer depends on the grammar: in many languages, the first tokenization of the example is a valid expression while the second is not. Taking this into account, we follow the tradition of lex and flex, and use a greedy approach, where in each iteration, the lexer grabs the longest prefix that is matched by a regex, continuing until the string ends, or no match is found. In both cases, Pudu marks the end with the eof token.
 
 Resuming the example, the string `"abcd123+10-1"` would be tokenized as:
 ```scala
-(Id("abcd123", Plus(), IntLiteral(10), IntLiteral(-1), EOF())
+(Id("abcd123"), Plus(), IntLiteral(10), IntLiteral(-1), EOF())
 ```
 
 It is recommended to avoid the case where the lexer does not find a match, by generating the Error token on unmatched characters. To do so, we recommend using a catch-all single character regex, like in the example:
@@ -183,7 +183,7 @@ First, we get the lexer function from the lexer object:
 ```
 then, we create a parser generator, and get the parser:
 ```scala
-  val parserGen = SLRParserGenerator(Calc)
+  val parserGen = SLRParserGenerator(Calc.grammar)
   val parser: Iterator[Token] => Either[ErrorMsg, Tree] = parserGen.parser
 ```
 and finally, we can compose both into a single function, or simply nest them:
@@ -193,14 +193,14 @@ and finally, we can compose both into a single function, or simply nest them:
 ```
 
 ### Reporting
-Pudu also includes a class `pudu.parser.generator.SLRReport`, which generates string representations of a parser generated by SLRParserGenerator. For example:
+Pudu also includes a class `pudu.parser.generator.LRReport`, which generates string representations of parser generators. For example:
 ```scala
   val parserGen = SLRParserGenerator(Calc)
-  val reporter = SLRReport(parserGen)
-  
+  val report = parserGen.report
+
   println(reporter.actionTable)
 ```
-would print the actions table. SLRReport also contains methods to print the productions, states, LR0 automaton, FIRST and FOLLOW.
+would print the actions table. LRReport also contains methods to print the productions, states, LR0 automaton, and goto table.
 
 ## Code Organization
 
@@ -211,30 +211,33 @@ There are three packages:
 
 ### pudu.grammar package
 This package contains the code needed to transform a language specification to the internal representation used by parser generators. Main classes are:
-- pudu.grammar.Symbol: ADT for grammar symbols, i.e. Terminal[Tree] and NonTerminal[Token]
+- pudu.grammar.Symbol: grammar symbols: Terminal[Tree] and NonTerminal[Token]
 - pudu.grammar.Precedence: Precedence definitions
 - pudu.grammar.LanguageSpec: Language specification
+- pudu.grammar.Grammar: Grammar derived from a LanguageSpec.
 - pudu.grammar.Rule: Internal representation of productions
 
 ### pudu.lexer
 As the name implies, this is the lexer implementation.
 
 ### pudu.parser
-Contains the parser generators. For now, that is only SLR, but we intend to add LR(1) (using Pager's PGM algorithm) in the future.
+Contains the parser generators. For now, that is SLR and LR(1) (using the standard algorithm).
 
 ## Writing a custom parser or parser generator
-To implement a parser generator, it is recommended to use a `LanguageSpec` object as parameter, which exposes:
+To implement a parser generator, it is recommended to use a `Grammar[Tree, Token]` object as parameter, which exposes:
 - `rules: Set[Rule[Tree, Token]]`: Set of productions, where `Rule[Tree, Token]` is defined as:
 ```scala
-  case class Rule[Tree, Token](left: NonTerminal[Tree], 
-                               right: Seq[Symbol], 
+  case class Rule[Tree, Token](left: Symbol,
+                               right: Seq[Symbol],
                                action: Seq[Tree|Token] => Tree)):
 ```
-- `terminals: Set[Symbol]`: Set of terminals. 
+- `terminals: Set[Symbol]`: Set of terminals.
 - `nonTerminals: Set[Symbol]`: Set of non terminals.
-- `start: NonTerminal[Tree]`: start symbol of the grammar.
+- `startSymbol: NonTerminal[Tree]`: start symbol of the grammar.
 - `eof: Terminal[Token]`: end of file terminal.
 - `error: Terminal[Token]`: lexical error terminal.
 - `precedence: Precedence`: operator precedence rules.
+- `augmented`: Grammar[Tree, Token]: method that generates a new grammar, augmented with a new start symbol.
+- `terminalNames`: Map[Int, String]: maps token ordinals to terminal names.
 
-Pudu also includes the class `pudu.parser.generator.LRParserGenerator`, which contains implementations of methods common to LR parsers, such as state closure, first and follow.
+The package `pudu.parser.generator`, contains implementations of methods common to LR parsers. For example, first and follow are implemented in `LRFirstFollow`, the construction of the automaton is in `LRAutomaton`, and so on. For an example, see `pudu.parser.generator.SLRParserGenerator`.
