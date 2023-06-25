@@ -4,7 +4,7 @@ import pudu.grammar._
 import pudu.parser._
 
 /** Base class for LR parser generators (SLR, LR(1), LALR) */
-abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[Tree,Token]) extends ParserGenerator[Tree, Token]:
+abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tree,Token]) extends ParserGenerator[Tree, Token]:
 
   type RuleT = Rule[Tree, Token]
   type ItemT = LRItem[Tree, Token]
@@ -23,22 +23,16 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
   type GotoTableEntry = ((Int, Symbol), Int)
 
   /* Grammar is augmented with a new start symbol */
-  val startSymbol = NonTerminal[Tree]("S'")
-  val eof: Terminal[Token] = lang.eof
-  val error: Terminal[Token] = lang.error // For lexer errors
-  val augmentedRule: RuleT = Rule(startSymbol, Seq(lang.start), _.head.asInstanceOf[Tree])
+  import grammar.{eof, error, precedence, terminals, nonTerminals, isTerminal, isNonTerminal, startRules}
+  require(startRules.size == 1 && startRules.head.right.size == 1)
 
-  val rules = lang.rules + augmentedRule
-  val precedence = lang.precedence
+  val startSymbol = grammar.startSymbol
+  val langStart = startRules.head.right.head
 
-  val terminals = lang.terminals + eof
-  val nonTerminals = lang.nonTerminals + startSymbol
-
-  def isTerminal(symbol: Symbol) = terminals.contains(symbol)
-  def isNonTerminal(symbol: Symbol) = nonTerminals.contains(symbol)
+  val rules = grammar.rules
 
   /* start state is the closure of the augmented rule */
-  val startState: StateT = closure(Set(augmentedRule.toItem))
+  val startState: StateT = closure(startRules.map(_.toItem))
 
   /** maps a token ordinal to its name. This is only used to generate
    *  error messages, so it is declared as lazy */
@@ -236,7 +230,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: Langua
     val (partialActionTable, gotoTable) = lrAutomaton.foldLeft((reduce, Map.empty))(updateTables)
 
     // add accept condition
-    val acceptState = lrAutomaton(startState, lang.start)
+    val acceptState = lrAutomaton(startState, langStart)
     val acceptEntry = acceptOn(acceptState)
 
     (partialActionTable + acceptEntry, gotoTable)

@@ -3,10 +3,12 @@ package pudu.parser.generator
 import pudu.grammar._
 import pudu.parser._
 
-class LR1ParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[Tree,Token]) extends LRParserGenerator(lang):
+class LR1ParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tree,Token]) extends LRParserGenerator(grammar):
+
+  import grammar._
 
   /** start state */
-  override val startState = closure(Set(augmentedRule.toItem(eof)))
+  override val startState = closure(startRules.map(_.toItem(eof)))
 
   /** state closure for LR1 parsers. */
   override def closure(state: StateT): StateT =

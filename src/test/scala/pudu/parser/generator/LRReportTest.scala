@@ -7,7 +7,7 @@ import scala.util.matching._
 // import org.mockito.Mockito._
 
 class LRReportTest extends munit.FunSuite {
-  val gen = SLRParserGenerator(SimpleArithmetic)
+  val gen = SLRParserGenerator(SimpleArithmetic.grammar.augmented)
   val report = LRReport(gen)
 
   test("number of rules") {
@@ -41,10 +41,11 @@ class LRReportTest extends munit.FunSuite {
   }
 
   test("report all without conflicts") {
-    val stub = new LRParserGenerator(SimpleArithmetic) {
+    val stub = new LRParserGenerator(SimpleArithmetic.grammar.augmented) {
       override def closure(state: StateT): StateT = Set.empty
       override val startState = Set.empty
       override def parser = ???
+      val eof = SimpleArithmetic.grammar.eof
       lazy val reduceActions: Map[(StateT, Terminal[Token]), Set[RuleT]] = Map.empty
       override lazy val lrAutomaton: Map[(StateT, Symbol), StateT] = Map.empty
 
@@ -75,10 +76,11 @@ class LRReportTest extends munit.FunSuite {
   }
 
   test("report all with conflicts") {
-    val stub = new LRParserGenerator(SimpleArithmetic) {
+    val stub = new LRParserGenerator(SimpleArithmetic.grammar.augmented) {
       override def closure(state: StateT): StateT = Set.empty
       override val startState = Set.empty
       override def parser = ???
+      val eof = SimpleArithmetic.grammar.eof
       lazy val reduceActions: Map[(StateT, Terminal[Token]), Set[RuleT]] = Map.empty
       override lazy val lrAutomaton: Map[(StateT, Symbol), StateT] = Map.empty
 

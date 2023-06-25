@@ -3,7 +3,9 @@ import pudu.parser._
 import pudu.parser.generator._
 
 class SLRParserGeneratorTest extends munit.FunSuite {
-  val parser = SLRParserGenerator(SimpleArithmetic).parser
+  val grammar = SimpleArithmetic.grammar.augmented
+
+  val parser = SLRParserGenerator(grammar).parser
 
   test("Parse 1") {
     val input = Seq(Token.IntLit(4), Token.Minus(), Token.IntLit(5), Token.EOF())
@@ -46,7 +48,7 @@ class SLRParserGeneratorTest extends munit.FunSuite {
       (expr ::= (expr, plus, expr)) { (l, _, r) => l + r }
       (expr ::= (expr, times, expr)) { (l, _, r) => l * r }
 
-    val parser = SLRParserGenerator(Arithmetic).parser
+    val parser = SLRParserGenerator(grammar).parser
     val input = Seq(Token.IntLit(2), Token.Plus(), Token.IntLit(3), Token.Times(), Token.IntLit(4), Token.EOF())
 
     val result = parser(input.iterator)
@@ -69,7 +71,7 @@ class SLRParserGeneratorTest extends munit.FunSuite {
       (expr ::= (expr, plus, expr)) { (l, _, r) => l + r }
       (expr ::= (expr, times, expr)) { (l, _, r) => l * r }
 
-    val parser = SLRParserGenerator(Arithmetic).parser
+    val parser = SLRParserGenerator(Arithmetic.grammar.augmented).parser
     val input = Seq(Token.IntLit(2), Token.Plus(), Token.IntLit(3), Token.Times(), Token.IntLit(4), Token.EOF())
 
     val result = parser(input.iterator)
@@ -92,7 +94,7 @@ class SLRParserGeneratorTest extends munit.FunSuite {
       (expr ::= (expr, plus, expr)) { (l, _, r) => l + r }
       (expr ::= (expr, times, expr)) { (l, _, r) => l * r }
 
-    val parser = SLRParserGenerator(Arithmetic).parser
+    val parser = SLRParserGenerator(Arithmetic.grammar.augmented).parser
     val input = Seq(Token.IntLit(2), Token.Plus(), Token.IntLit(3), Token.Times(), Token.IntLit(4), Token.EOF())
 
     val result = parser(input.iterator)
@@ -114,7 +116,7 @@ class SLRParserGeneratorTest extends munit.FunSuite {
       (expr ::= (expr, plus, expr)) { (l, _, r) => l + r }
       (expr ::= (expr, times, expr)) { (l, _, r) => l * r }
 
-    val parserGen = SLRParserGenerator(Arithmetic)
+    val parserGen = SLRParserGenerator(Arithmetic.grammar.augmented)
     val actions = parserGen.actionTable
 
     assert(actions.find(entry => entry._2.size == 2).isDefined)
@@ -140,7 +142,7 @@ class SLRParserGeneratorTest extends munit.FunSuite {
       (expr ::= intLit) { _.value }
       (expr ::= (expr, binop, expr)) { (l, op, r) => if op == 0 then l + r else l * r }
 
-    val parser = SLRParserGenerator(Arithmetic).parser
+    val parser = SLRParserGenerator(Arithmetic.grammar.augmented).parser
     val input = Seq(Token.IntLit(2), Token.Plus(), Token.IntLit(3), Token.Times(), Token.IntLit(4), Token.EOF())
 
     val result = parser(input.iterator)
@@ -165,7 +167,7 @@ class SLRParserGeneratorTest extends munit.FunSuite {
       (exprMul ::= intLit) { _.value }
       (exprMul ::= (exprMul, times, intLit)) { (l,_,r) => l * r.value }
 
-    val parser = SLRParserGenerator(Arithmetic).parser
+    val parser = SLRParserGenerator(Arithmetic.grammar.augmented).parser
     val input = Seq(Token.IntLit(2), Token.Plus(), Token.IntLit(3), Token.Times(), Token.IntLit(4), Token.EOF())
 
     val result = parser(input.iterator)
@@ -187,7 +189,7 @@ class SLRParserGeneratorTest extends munit.FunSuite {
       (expr ::= (intLit, plus, expr)) { (l,_,r) => l.value + r }
       (expr ::= (intLit, times, expr)) { (l,_,r) => l.value * r }
 
-    val parser = SLRParserGenerator(Arithmetic).parser
+    val parser = SLRParserGenerator(Arithmetic.grammar.augmented).parser
     val input = Seq(Token.IntLit(2), Token.Plus(), Token.IntLit(3), Token.Times(), Token.IntLit(4), Token.EOF())
 
     val result = parser(input.iterator)
@@ -209,7 +211,7 @@ class SLRParserGeneratorTest extends munit.FunSuite {
       (expr ::= (expr, plus, intLit)) { (l,_,r) => l + r.value }
       (expr ::= (expr, times, intLit)) { (l,_,r) => l * r.value }
 
-    val parser = SLRParserGenerator(Arithmetic).parser
+    val parser = SLRParserGenerator(Arithmetic.grammar.augmented).parser
     val input = Seq(Token.IntLit(2), Token.Plus(), Token.IntLit(3), Token.Times(), Token.IntLit(4), Token.EOF())
 
     val result = parser(input.iterator)
@@ -232,7 +234,7 @@ class SLRParserGeneratorTest extends munit.FunSuite {
       (expr ::= (expr, plus, expr)) { (l,_,r) => l + r }
       (expr ::= (expr, plus, expr)) { (l,_,r) => l * r }
 
-    val parserGen = SLRParserGenerator(Arithmetic)
+    val parserGen = SLRParserGenerator(Arithmetic.grammar.augmented)
     val actions = parserGen.actionTable
 
     assert(actions.find(entry => entry._2.size == 2).isDefined)
@@ -256,7 +258,7 @@ class SLRParserGeneratorTest extends munit.FunSuite {
       (expr ::= (expr, plus, expr)) { (l,_,r) => l * r }
 
     val ex = intercept[UnresolvedConflictException] {
-      val parser = SLRParserGenerator(Arithmetic).parser
+      val parser = SLRParserGenerator(Arithmetic.grammar.augmented).parser
     }
     assert(ex.getMessage().startsWith("Unresolved conflicts. Report written to"))
   }

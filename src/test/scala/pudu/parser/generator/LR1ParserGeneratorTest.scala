@@ -28,18 +28,19 @@ class LR1ParserGeneratorTest extends munit.FunSuite {
 
 
   test("first") {
-    val lr1 = LR1ParserGenerator(Example)
+    val lr1 = LR1ParserGenerator(Example.grammar.augmented)
     assertEquals(lr1.first(Example.ss), Set(Example.c, Example.d))
     assertEquals(lr1.first(Example.cc), Set(Example.c, Example.d))
   }
 
   test("lr1 closure and start state") {
-    val lr1 = LR1ParserGenerator(Example)
+    val grammar = Example.grammar.augmented
+    val lr1 = LR1ParserGenerator(grammar)
 
-    val ag = lr1.augmentedRule
-    val sr = Example.rules.filter(_.left == Example.ss).head // ss ::= cc cc
-    val c1 = Example.rules.filter(r => r.left == Example.cc && r.right.size == 2).head // cc ::= c cc
-    val cd = Example.rules.filter(r => r.left == Example.cc && r.right.size == 1).head // cc ::= d
+    val ag = grammar.startRules.head
+    val sr = grammar.rules.filter(_.left == Example.ss).head // ss ::= cc cc
+    val c1 = grammar.rules.filter(r => r.left == Example.cc && r.right.size == 2).head // cc ::= c cc
+    val cd = grammar.rules.filter(r => r.left == Example.cc && r.right.size == 1).head // cc ::= d
 
     val sstate = Set(ag.toItem(Example.eof), sr.toItem(Example.eof),
                      c1.toItem(Example.c), c1.toItem(Example.d),

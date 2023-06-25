@@ -3,9 +3,12 @@ import pudu.parser.generator._
 
 class LrCommonTest extends munit.FunSuite {
   import SimpleArithmetic._
-  object TestLR extends LRParserGenerator(SimpleArithmetic):
+
+  val grammar = SimpleArithmetic.grammar.augmented
+  val rules = grammar.rules
+
+  object TestLR extends LRParserGenerator(grammar):
     override lazy val reduceActions: Map[(StateT, Terminal[Token]), Set[RuleT]] = ???
-    override val startState = closure(Set(augmentedRule.toItem))
 
   def select(f: TestLR.RuleT => Boolean): TestLR.StateT =
     rules.filter(f).map(_.toItem)
@@ -69,7 +72,7 @@ class LrCommonTest extends munit.FunSuite {
 
     val cls = TestLR.closure(Set(startItem))
 
-    assertEquals(cls, rules.map(_.toItem) + startItem)
+    assertEquals(cls, rules.map(_.toItem).filter(_.left != grammar.startSymbol) + startItem)
   }
 
   test("GOTO emtpy") {
@@ -104,7 +107,7 @@ class LrCommonTest extends munit.FunSuite {
   }
   test("lrAutomaton") {
     val automaton = TestLR.lrAutomaton
-    val startState = TestLR.closure(Set(TestLR.augmentedRule.toItem))
+    val startState = TestLR.closure(grammar.startRules.map(_.toItem))
 
     val toExpr = TestLR.goto(startState, expr)
     assertEquals(automaton(startState, expr), toExpr)

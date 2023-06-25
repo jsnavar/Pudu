@@ -28,7 +28,7 @@ class RuleTest extends munit.FunSuite {
     }
 
   test("Rule toString") {
-    val rule = SimpleArithmetic.rules.head
+    val rule = SimpleArithmetic.grammar.rules.head
 
     assertEquals(rule.toString, "Expr ::= Expr Plus Expr")
   }

@@ -3,7 +3,7 @@ package pudu.parser.generator
 import pudu.grammar._
 import pudu.parser._
 
-class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](lang: LanguageSpec[Tree,Token]) extends LRParserGenerator(lang):
+class SLRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tree,Token]) extends LRParserGenerator(grammar):
 
   /** For each state 'state', compute pairs ((state, terminal), rule),
    *  where rule is the rule to reduce by given the pair (state, terminal).
