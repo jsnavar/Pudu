@@ -23,7 +23,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Gra
   type GotoTableEntry = ((Int, Symbol), Int)
 
   /* Grammar is augmented with a new start symbol */
-  import grammar.{eof, error, precedence, terminals, nonTerminals, isTerminal, isNonTerminal, startRules}
+  import grammar.{eof, error, precedence, terminals, nonTerminals, isTerminal, isNonTerminal, startRules, terminalNames}
   require(startRules.size == 1 && startRules.head.right.size == 1)
 
   val startSymbol = grammar.startSymbol
@@ -34,10 +34,7 @@ abstract class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Gra
   /* start state is the closure of the augmented rule */
   val startState: StateT = closure(startRules.map(_.toItem))
 
-  /** maps a token ordinal to its name. This is only used to generate
-   *  error messages, so it is declared as lazy */
-  lazy val tokenNames = terminals.asInstanceOf[Set[Terminal[_]]]
-    .map(t => t.ordinal -> t.name).toMap
+  val tokenNames = grammar.terminalNames
 
   /*
    * Auxiliary functions

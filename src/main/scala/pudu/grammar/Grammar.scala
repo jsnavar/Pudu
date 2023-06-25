@@ -26,10 +26,9 @@ case class Grammar[Tree, Token <: reflect.Enum](rules: Set[Rule[Tree, Token]],
   def isNonTerminal(symbol: Symbol) = nonTerminals.contains(symbol)
 
   /** maps a token ordinal to its name. */
-  def terminalName(ordinal: Int): Option[String] =
+  lazy val terminalNames =
     terminals.asInstanceOf[Set[Terminal[_]]]
-      .find(_.ordinal == ordinal)
-      .map(_.name)
+      .map(t => t.ordinal -> t.name).toMap
 
   val startRules: Set[Rule[Tree, Token]] = rules.filter(_.left == startSymbol)
 
