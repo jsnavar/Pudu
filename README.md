@@ -4,7 +4,7 @@
 
 Shift-reduce parser and lexer generators in Scala 3, featuring type checked semantic actions, similar syntax for lexers and parsers, and a modular design with simple interfaces.
 
-Pudu was modeled after [Flex](https://github.com/westes/flex) and [Bison](https://www.gnu.org/software/bison/), but implemented as a library instead of a separate program: in Pudu all definitions —tokens, lexers, parsers and actions— are declared using standard Scala code. This simplifies the usage and development of the library, but comes with a few drawbacks in comparison with Flex and Bison. Maybe the most important one is that a program using Pudu includes the *specification* of the parser, but not the parser itself, which needs to be generated in each execution. Most of the times, this can be avoided using serialization, by saving the serialized parser to a file, and reading it back later, but that is not a very clean solution. Nevertheless, as Pudu is intended to be a learning tool, we do not concern ourselves with that problem.
+Pudu was modeled after [Flex](https://github.com/westes/flex) and [Bison](https://www.gnu.org/software/bison/), but implemented as a library instead of a separate program: all definitions —tokens, lexers, parsers and actions— are declared using standard Scala code. This simplifies the usage and development of the library, but comes with a few drawbacks in comparison with Flex and Bison. Maybe the most important one is that a program using Pudu includes the *specification* of the parser, but not the parser itself, which needs to be generated in each execution. Most of the times, this can be avoided using serialization, by saving the serialized parser to a file, and reading it back later, but that is not a very clean solution. Nevertheless, as Pudu is intended to be a learning tool, we do not concern ourselves with that problem.
 
 A complete example application using Pudu can be found at [PuduCalc](https://github.com/jsnavar/PuduCalc).
 
@@ -20,10 +20,10 @@ enum Example:
   case SomeCase(x: Int)
   case AnotherCase(y: String, z: Something)
 ```
-How do we find the ordinal of a case using only its type (i.e., without an actual object)?. Here, the idea is to have a function `enumOrdinal` such that `enumOrdinal[Example.SomeCase] == 0`, and `enumOrdinal[Example.AnotherCase] == 1`.
+How do we find the ordinal of a case using only its type (i.e., without an actual object)?. Here, the idea is to have a function `enumOrdinal[T]` such that `enumOrdinal[Example.SomeCase] == 0`, and `enumOrdinal[Example.AnotherCase] == 1`.
 
 ### Giter8 template
-A [giter8](https://github.com/foundweekends/giter8) template is provided to simplify the creation of new projects using Pudu. To use it, just run:
+A [giter8](https://github.com/foundweekends/giter8) template is provided to simplify the creation of new projects. To use it, just run:
 ```
 sbt new jsnavar/Pudu.g8
 ```
