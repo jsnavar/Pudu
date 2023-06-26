@@ -14,7 +14,8 @@ class LRFirstFollow[Tree, Token <: reflect.Enum](grammar: Grammar[Tree, Token]):
     def impl(acc: Set[(L, R)], step: Set[(L, R)]): Set[(L, R)] =
       val next = for
         (stepLeft, stepRight) <- step
-        prev <- invMap.getOrElse(stepLeft, Set.empty)
+        if invMap.contains(stepLeft)
+        prev <- invMap(stepLeft)
         newEdge = (prev, stepRight)
         if !acc.contains(newEdge)
       yield newEdge
