@@ -4,9 +4,7 @@ import pudu.grammar._
 
 /** Computes FIRST and FOLLOW of the grammar from 'lang', after grammar augmentation */
 class LRFirstFollow[Tree, Token <: reflect.Enum](grammar: Grammar[Tree, Token]):
-  import grammar._
-
-  type SymPair = (Symbol, Symbol)
+  import grammar.{rules, isNonTerminal, terminals, startSymbol, eof}
 
   /** Given a set of pairs 'start: Set[(L, R)]' and a graph 'edges: Set[(L, L)]',
    *  this function computes:
@@ -27,7 +25,9 @@ class LRFirstFollow[Tree, Token <: reflect.Enum](grammar: Grammar[Tree, Token]):
   /** Given a set of pairs (a,b), groupPairs returns a map:
    *  {a -> s| s contains all elements b, such that (a,b)\in pairs} */
   def groupPairs[L, R](pairs: Set[(L,R)]): Map[L, Set[R]] =
-    pairs.groupMapReduce(_._1)((p: (L,R)) => Set(p._2))(_ ++ _)
+    pairs.groupMap(_._1)(_._2)
+
+  type SymPair = (Symbol, Symbol)
 
   /** Pudu does not support null productions, so FIRST reduces to reachability
    *  in the graph given by the first symbol of each production. */
