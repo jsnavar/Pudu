@@ -13,25 +13,27 @@ class LR1ParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tre
 
   /** state closure for LR1 parsers. */
   def closure(first: Map[Symbol, Set[Terminal[Token]]])(state: StateT): StateT =
+    /* FIRST of 'seq' concatenated with 'next' (if defined) */
     def firstSeq(seq: Seq[Symbol], next: Option[Symbol]) =
       if !seq.isEmpty then first(seq.head)
-      else if next.isDefined then first(next.get)
-      else Set.empty
+      else next.map(first).getOrElse(Set.empty)
 
-    def closureImpl(acc: StateT): StateT =
+    def closureImpl(acc: StateT, frontier: Set[LRItem[Tree, Token]]): StateT =
       val step = for
-        item <- acc
+        item <- frontier
         if !item.after.isEmpty && isNonTerminal(item.after.head)
         head = item.after.head
+
         rule <- rules
         if rule.left == head
+
         tok <- firstSeq(item.after.tail, item.context)
         newItem = rule.toItem(tok)
         if !acc.contains(newItem)
       yield newItem
       if step.isEmpty then acc
-      else closureImpl(acc ++ step)
-    closureImpl(state)
+      else closureImpl(acc ++ step, step)
+    closureImpl(state, state)
 
   val startState = closure(lrff.first)(startRules.map(_.toItem(eof)))
 

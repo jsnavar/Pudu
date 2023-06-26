@@ -6,35 +6,24 @@ import pudu.grammar._
 class LRFirstFollow[Tree, Token <: reflect.Enum](grammar: Grammar[Tree, Token]):
   import grammar._
 
-//  val startSymbol = NonTerminal[Tree]("S'")
-//  val eof: Terminal[Token] = lang.eof
-
-//  val augmentedRule: RuleT = Rule(startSymbol, Seq(lang.start), _.head.asInstanceOf[Tree])
-
-//  val rules = lang.rules + augmentedRule
-
-//  val terminals = lang.terminals + eof
-//  val nonTerminals = lang.nonTerminals + startSymbol
-
-//  def isTerminal(symbol: Symbol) = terminals.contains(symbol)
-//  def isNonTerminal(symbol: Symbol) = nonTerminals.contains(symbol)
-
-
-  /** Given a set of pairs 'current: Set[(L, R)]', and a graph 'edges: Set[(L, L)]',
-   *  this function computes:
-   *  { (x: L, y: R) | there exists z: L, such that z is reachable from x on 'edges', and (z,y)\in 'current' } */
-  def lfp[L, R](edges: Set[(L, L)], current: Set[(L, R)]): Set[(L,R)] =
-    //compute the new pairs
-    val next = for
-      (el, er) <- edges
-      (cl, cr) <- current
-      if er == cl
-      if !current.contains((el, cr))
-    yield (el, cr)
-    if next.isEmpty then current
-    else lfp(edges, current ++ next)
-
   type SymPair = (Symbol, Symbol)
+
+  /** Given a set of pairs 'start: Set[(L, R)]' and a graph 'edges: Set[(L, L)]',
+   *  this function computes:
+   *  { (x: L, y: R) | there exists z: L, such that z is reachable from x on 'edges', and (z,y)\in 'start' } */
+  def lfp[L, R](edges: Set[(L, L)], start: Set[(L, R)]): Set[(L,R)] =
+    val invMap = edges.groupMap(_._2)(_._1)
+    def impl(acc: Set[(L, R)], step: Set[(L, R)]): Set[(L, R)] =
+      val next = for
+        (stepLeft, stepRight) <- step
+        prev <- invMap.getOrElse(stepLeft, Set.empty)
+        newEdge = (prev, stepRight)
+        if !acc.contains(newEdge)
+      yield newEdge
+      if next.isEmpty then acc
+      else impl(acc ++ next, next)
+    impl(start, start)
+
   /** Given a set of pairs (a,b), groupPairs returns a map:
    *  {a -> s| s contains all elements b, such that (a,b)\in pairs} */
   def groupPairs[L, R](pairs: Set[(L,R)]): Map[L, Set[R]] =
