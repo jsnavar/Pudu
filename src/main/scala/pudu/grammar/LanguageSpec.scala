@@ -1,11 +1,15 @@
 package pudu.grammar
 
-/** An class to specify grammars using scala code.
+/** An class to specify grammars.
  *
- *  Types Tree and Token refer to the types used for NonTerminal and Terminal respectively */
+ *  Types Tree and Token refer to the types used for NonTerminal and Terminal respectively. These are used
+ *  as upper bounds for all symbols, which is needed for type safety of the parser.
+ *  The clause NotGiven[Enum <:< Token] is used to forbid the definition of a language using Enum as Token:
+ *  {{{ object SomeLanguage extends LanguageSpec[Any, reflect.Enum] }}} is not allowed. Doing so, would allow
+ *  a parser to get an Iterator[T], for any enum T, which could result in a type error. */
 abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum](using scala.util.NotGiven[reflect.Enum <:< Token]):
 
-  // Rules are collected into a private mutable set
+  // Rules are collected into 'rules'.
   private val rules = scala.collection.mutable.HashSet[Rule[Tree,Token]]()
 
   // start symbol of the grammar
@@ -40,7 +44,7 @@ abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum](using scala.util.
    *  Given a NonTerminal left: NonTerminal[T], and symbols r1, r2, r3, ...,
    *  a production can be defined as:
     {{{    (left ::= (r1, r2, r3, ...)) { fn }      }}}
-   *  where the type of the semantic action 'fn' is inferred from
+   *  where the type of the action 'fn' is inferred from
    *  'left', 'r1', 'r2', 'r3', ...
    *  The clause using IsBounded is used to enforce that all elements of
    *  right comply with NonTerminal[t <: Tree] or Terminal[+Token]. This could be
@@ -52,11 +56,14 @@ abstract class LanguageSpec[Tree, Token <: scala.reflect.Enum](using scala.util.
      * We include the Symbol case to allow defining unit productions without parenthesis, for example
      * {{{ (expr ::= literal) { ... } }}} instead of {{{ (expr ::= (literal)) { ... } }}} */
     protected inline def ::= [Right] (inline right: Right)(inline fn: SymData[Right] => T)(using IsBounded[Right]): Unit =
+      /* In a [[pudu.grammar.Rule]], 'right' is a Seq[Symbol], and 'action' has type {{{ Seq[Tree | Token] => Tree }}},
+       * so we need to convert both values. */
       val rightSeq = inline right match
         case s: Symbol => Seq(s)
         case t: NonEmptyTuple => t.toList.asInstanceOf[Seq[Symbol]] // this cast is safe by the IsBounded clause above
 
       rules += Rule(left, rightSeq, toSeqFn(fn))
 
+  /* returns an equivalent [[pudu.grammar.Grammar]] */
   def grammar: Grammar[Tree, Token] =
     Grammar(rules.toSet, start, eof, error, precedence)

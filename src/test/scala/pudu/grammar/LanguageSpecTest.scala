@@ -390,7 +390,7 @@ class LanguageSpecTest extends munit.FunSuite {
       val terminals = SimpleArithmetic.grammar.terminals
     }
     assertEquals(ex.nonTerminals, Set(SimpleArithmetic.undef1, SimpleArithmetic.undef2, SimpleArithmetic.undef3))
-    assert(ex.getMessage().endsWith(" were used without productions"))
+    assert(ex.getMessage().startsWith("Missing productions for non terminals <"))
   }
 
 

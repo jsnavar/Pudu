@@ -7,15 +7,14 @@ import scala.quoted.*
  * {{{
      (x: Seq[Args]) => fn((x(size - 1), x(size - 2), ..., x(1), x(0)).asInstanceOf[Tup])
  * }}},
- * that corresponds to calling 'fn' on the top 'size' elements of the stack, casted to Tup (!!) in
- * reverse order (order is reversed because it is an stack).
+ * that corresponds to calling 'fn' on the top 'size' elements of the stack, in reverse order, casted to Tup (!!).
  * By itself this is obviously unsafe, but used in reductions of a 'correctly implemented' shift
  * reduce parser, where the semantic actions were defined using the ::= extension method, then it is safe.
  * This can be proved using that actions in ::= are type checked: each argument match the SymData of the
  * corresponding symbol, and the return type matches the SymData of the NonTerminal in the lhs; and when the
  * parser reduces by a production, then the top of the stack has elements corresponding to the rhs of that production. */
-inline def toSeqFnTuple[Args, Ret, Tup <: Tuple](inline fn: Tup => Ret): Seq[Args] => Ret =
-  ${ toSeqFnTupleImpl('{compiletime.constValue[Tuple.Size[Tup]]}, 'fn) }
+inline def toSeqFnTuple[Args, Ret, Tup <: Tuple](inline size: Int, inline fn: Tup => Ret): Seq[Args] => Ret =
+  ${ toSeqFnTupleImpl('size, 'fn) }
 
 def toSeqFnTupleImpl[Args: Type, Ret: Type, Tup <: Tuple: Type](size: Expr[Int], fn: Expr[Tup => Ret])(using Quotes) =
   val idxSeq = (0 until size.valueOrAbort).reverse.map(Expr.apply)
@@ -29,7 +28,9 @@ def toSeqFnTupleImpl[Args: Type, Ret: Type, Tup <: Tuple: Type](size: Expr[Int],
 /* Entry point, covering tuples and single types (for unit productions) */
 inline def toSeqFn[ArgsType, RetType, T](inline fn: T => RetType): Seq[ArgsType] => RetType =
   inline fn match
-    case f: (x *: xs => RetType) => toSeqFnTuple(f)
+    case f: (x *: xs => RetType) =>
+      inline val size = compiletime.constValue[Tuple.Size[x *: xs]]
+      toSeqFnTuple(size, f)
     case f: (T => RetType) =>
       (args: Seq[ArgsType]) =>
         fn(args.head.asInstanceOf[T])

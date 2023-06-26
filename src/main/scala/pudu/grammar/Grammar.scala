@@ -5,6 +5,7 @@ package pudu.grammar
  *  - nonTerminals: a set of [[pudu.grammar.Symbol]] corresponding to non terminals
  *  - terminals: a set of [[pudu.grammar.Symbol]] corresponding to terminals
  *  - start: the start symbol of the grammar
+ *  - startRules: rules with 'start' as left symbol
  *  - eof: Terminal for EOF
  *  - error: Terminal for lexical errors
  *  - precedence: precedence and associativity rules */
@@ -13,9 +14,9 @@ case class Grammar[Tree, Token <: reflect.Enum](rules: Set[Rule[Tree, Token]],
                                                 eof: Terminal[Token],
                                                 error: Terminal[Token],
                                                 precedence: Precedence):
-  lazy val nonTerminals = rules.map(_.left).toSet[Symbol]
+  val nonTerminals = rules.map(_.left).toSet[Symbol]
 
-  lazy val terminals =
+  val terminals =
     val possiblyTerminals = rules.flatMap(_.right) -- nonTerminals
     val undefNonTerminals = possiblyTerminals.filter(_.isInstanceOf[NonTerminal[_]])
     if !undefNonTerminals.isEmpty then

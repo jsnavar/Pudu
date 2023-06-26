@@ -15,18 +15,19 @@ enum Side:
  *  nth entry in levels represents the associativity of the nth precedence level,
  *  and symPrec maps symbols to their levels */
 class Precedence(levels: Seq[Assoc], val symPrec: Map[Symbol, Int]):
-  /** adds a new precedence level with symbols symbols, and associativity assoc */
-  def appended(symbols: Seq[Symbol], assoc: Assoc) =
+  /** adds a new precedence level with symbols 'symbols', and associativity 'assoc' */
+  def appended(symbols: Iterable[Symbol], assoc: Assoc) =
     val lv = levels.size
     require(symbols.forall(!symPrec.contains(_)), "Precedence of a symbol must be declared at most once")
-    new Precedence(levels.appended(assoc), symPrec ++ symbols.map(_ -> lv))
+    new Precedence(levels :+ assoc, symPrec ++ symbols.map(_ -> lv))
 
   /** helper methods */
   def left(symbols: Symbol*) = appended(symbols, Assoc.Left)
   def right(symbols: Symbol*) = appended(symbols, Assoc.Right)
   def nonassoc(symbols: Symbol*) = appended(symbols, Assoc.NonAssoc)
 
-  /** returns the side with higher precedence, or Neither if they are not comparable */
+  /** returns the side with higher precedence, Neither if they are not comparable, and Error
+   *  if they are nonassoc */
   def max(left: Symbol, right: Symbol): Side =
     if !symPrec.contains(left) || !symPrec.contains(right) then Side.Neither
     else
@@ -36,8 +37,7 @@ class Precedence(levels: Seq[Assoc], val symPrec: Map[Symbol, Int]):
         case Assoc.Left => Side.Left
         case Assoc.Right => Side.Right
         case Assoc.NonAssoc => Side.Error
-      else if leftPrec > rightPrec then Side.Left
-      else Side.Right
+      else if leftPrec > rightPrec then Side.Left else Side.Right
 
 object Precedence:
   def empty = new Precedence(Seq.empty[Assoc], Map.empty[Symbol, Int])
