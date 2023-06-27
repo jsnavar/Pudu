@@ -16,7 +16,7 @@ abstract class Lexer[Token <: reflect.Enum]:
 
   private var entries = Seq.empty[LexerCase]
 
-  /* method called on end of file. It is a def, because the EOF token could depend
+  /* method called on end of file. It is a def because the EOF token could depend
    * on the state of the lexer (for example, for position data) */
   protected def eof: Token
 
@@ -46,13 +46,14 @@ abstract class Lexer[Token <: reflect.Enum]:
       .maxByOption(_.result.end)
 
   def lexer(input: CharSequence): Iterator[Token] =
-    Iterator.iterate(nextMatch(input)) {
-      _.flatMap { case Match(m, _) => nextMatch(m.after) }}
-        .takeWhile(_.isDefined)
-        .collect {
-          // for each match, generate a Some(Token) if it is a TokenCase,
-          // or None (after calling the side effects function) if it is an IgnoreCase
-          case Some(Match(m, TokenCase(_, fn))) => Some(fn(m.matched))
-          case Some(Match(m, IgnoreCase(_, fn))) => fn(m.matched) ; None }
-        .collect { case Some(tok) => tok }
-        .concat(Iterator.single(eof))
+    val firstMatch = nextMatch(input)
+    val iter: Option[Match] => Option[Match] =
+      _.flatMap(m => nextMatch(m.result.after))
+
+    Iterator.iterate(firstMatch)(iter)
+      .takeWhile(_.isDefined)
+      .collect {
+        case Some(Match(m, TokenCase(_, fn))) => Some(fn(m.matched))
+        case Some(Match(m, IgnoreCase(_, fn))) => fn(m.matched) ; None }
+      .collect { case Some(tok) => tok }
+      .concat(Iterator.single(eof))

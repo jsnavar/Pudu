@@ -38,7 +38,7 @@ class LanguageSpecTest extends munit.FunSuite {
         _.value
       }
 
-    val rules = SimpleArithmetic.rules
+    val rules = SimpleArithmetic.grammar.rules
     assert(rules.size == 1)
 
     val firstRule = rules.head
@@ -72,7 +72,7 @@ class LanguageSpecTest extends munit.FunSuite {
         _._2.value
       }
 
-    val rules = SimpleArithmetic.rules
+    val rules = SimpleArithmetic.grammar.rules
     assert(rules.size == 1)
 
     val firstRule = rules.head
@@ -106,7 +106,7 @@ class LanguageSpecTest extends munit.FunSuite {
         (exp1, _, exp2) => exp1 + exp2
       }
 
-    val rules = SimpleArithmetic.rules
+    val rules = SimpleArithmetic.grammar.rules
     assert(rules.size == 1)
 
     val firstRule = rules.head
@@ -139,7 +139,7 @@ class LanguageSpecTest extends munit.FunSuite {
         (_, exp1, _, exp2) => -exp1 * exp2
       }
 
-    val rules = SimpleArithmetic.rules
+    val rules = SimpleArithmetic.grammar.rules
     assert(rules.size == 1)
 
     val firstRule = rules.head
@@ -173,7 +173,7 @@ class LanguageSpecTest extends munit.FunSuite {
         (_, exp1, _, exp2, _) => exp1 - exp2
       }
 
-    val rules = SimpleArithmetic.rules
+    val rules = SimpleArithmetic.grammar.rules
     assert(rules.size == 1)
 
     import SimpleArithmetic._
@@ -212,7 +212,7 @@ class LanguageSpecTest extends munit.FunSuite {
         (fn, _, exp1, _, exp2, _) => if fn.id == "pow" then math.pow(exp1, exp2).toInt else 0
       }
 
-    val rules = SimpleArithmetic.rules
+    val rules = SimpleArithmetic.grammar.rules
     assert(rules.size == 2)
 
     import SimpleArithmetic._
@@ -251,7 +251,7 @@ class LanguageSpecTest extends munit.FunSuite {
         (_, fn, _, exp1, _, exp2, _) => if fn.id == "pow" then -math.pow(exp1, exp2).toInt else 0
       }
 
-    val rules = SimpleArithmetic.rules
+    val rules = SimpleArithmetic.grammar.rules
     assert(rules.size == 2)
 
     import SimpleArithmetic._
@@ -290,7 +290,7 @@ class LanguageSpecTest extends munit.FunSuite {
         (exp0, _, fn, _, exp1, _, exp2, _) => exp0 - (if fn.id == "pow" then math.pow(exp1, exp2).toInt else 0)
       }
 
-    val rules = SimpleArithmetic.rules
+    val rules = SimpleArithmetic.grammar.rules
     assert(rules.size == 2)
 
     import SimpleArithmetic._
@@ -339,12 +339,12 @@ class LanguageSpecTest extends munit.FunSuite {
           case _ => 0
       }
 
-    val rules = SimpleArithmetic.rules
-    assert(rules.size == 7)
-    assert(rules.filter(_.left == SimpleArithmetic.exprList).size == 2)
-    assert(rules.filter(_.left == SimpleArithmetic.expr).size == 5)
-    assertEquals(SimpleArithmetic.nonTerminals, Set(SimpleArithmetic.expr, SimpleArithmetic.exprList))
-    assert(SimpleArithmetic.terminals.size == 8)
+    val rules = SimpleArithmetic.grammar.rules
+    assertEquals(rules.size, 7)
+    assertEquals(rules.filter(_.left == SimpleArithmetic.exprList).size, 2)
+    assertEquals(rules.filter(_.left == SimpleArithmetic.expr).size, 5)
+    assertEquals(SimpleArithmetic.grammar.nonTerminals, Set(SimpleArithmetic.expr, SimpleArithmetic.exprList))
+    assertEquals(SimpleArithmetic.grammar.terminals.size, 9)
   }
 
   test("undefined non terminal (1)") {
@@ -363,7 +363,7 @@ class LanguageSpecTest extends munit.FunSuite {
       (expr ::= undef) { identity }
 
     val ex = intercept[UndefinedNonTerminalException] {
-      val terminals = SimpleArithmetic.terminals
+      val terminals = SimpleArithmetic.grammar.terminals
     }
     assert(ex.getMessage().startsWith("Missing productions for non terminal"))
   }
@@ -387,10 +387,10 @@ class LanguageSpecTest extends munit.FunSuite {
       (expr ::= (undef1, undef2, undef3) ) { (u1,u2,u3) => u1 + u2 + u3 }
 
     val ex = intercept[UndefinedNonTerminalException] {
-      val terminals = SimpleArithmetic.terminals
+      val terminals = SimpleArithmetic.grammar.terminals
     }
     assertEquals(ex.nonTerminals, Set(SimpleArithmetic.undef1, SimpleArithmetic.undef2, SimpleArithmetic.undef3))
-    assert(ex.getMessage().endsWith(" were used without productions"))
+    assert(ex.getMessage().startsWith("Missing productions for non terminals <"))
   }
 
 

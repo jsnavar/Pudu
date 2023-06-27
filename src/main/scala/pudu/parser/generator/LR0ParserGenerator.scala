@@ -3,6 +3,6 @@ package pudu.parser.generator
 import pudu.parser._
 import pudu.grammar._
 
-/** Exercise for the reader :). It should be easy, as most of the work is already done in 'LRParserGenerator' */
-class LR0ParserGenerator[Tree, Token <: reflect.Enum](lang: LanguageSpec[Tree, Token]) extends LRParserGenerator(lang):
-  override lazy val reduceActions: Map[(State, Terminal[Token]), Set[RuleT]] = ???
+/** Exercise for the reader :). */
+class LR0ParserGenerator[Tree, Token <: reflect.Enum](grammar: Grammar[Tree, Token]) extends ParserGenerator[Tree, Token]:
+  def parser = ???

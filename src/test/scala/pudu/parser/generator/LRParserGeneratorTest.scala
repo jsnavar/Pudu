@@ -1,130 +1,236 @@
 import pudu.grammar._
 import pudu.parser.generator._
 
-class LrCommonTest extends munit.FunSuite {
-  import SimpleArithmetic._
-  object TestLR extends LRParserGenerator(SimpleArithmetic):
-    override lazy val reduceActions: Map[(State, Terminal[Token]), Set[RuleT]] = ???
-    override val startState = closure(Set(augmentedRule.toItem))
+class LRParserGeneratorTest extends munit.FunSuite {
+  test("Empty precedence shifts") {
+    object Arithmetic extends LanguageSpec[Int, Token]:
+      val expr = NonTerminal[Int]("expr")
+      val times = Terminal[Token.Times]
+      val plus = Terminal[Token.Plus]
+      val intLit = Terminal[Token.IntLit]
 
-  def select(f: TestLR.RuleT => Boolean): TestLR.State =
-    rules.filter(f).map(_.toItem)
+      override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
+      override val start = expr
+      override val precedence = Precedence.empty
 
-  test("Item equality") {
-    val rule = rules.filter(_.right == Seq(expr)).head
+      (expr ::= intLit) { _.value }
+      (expr ::= (expr, plus, expr)) { (l, _, r) => l + r }
+      (expr ::= (expr, times, expr)) { (l, _, r) => l * r }
 
-    assertEquals(rule.toItem, rule.toItem)
+    val parser = SLRParserGenerator(Arithmetic.grammar).parser
+    val input = Seq(Token.IntLit(2), Token.Plus(), Token.IntLit(3), Token.Times(), Token.IntLit(4), Token.EOF())
+
+    val result = parser(input.iterator)
+    assertEquals(result.getOrElse(0), 14)
   }
 
-  test("Item shift once") {
-    val filtered = rules.filter(_.left == exprList)
-    assertEquals(filtered.size, 2)
+  test("Precedence equal level left") {
+    object Arithmetic extends LanguageSpec[Int, Token]:
+      val expr = NonTerminal[Int]("expr")
+      val times = Terminal[Token.Times]
+      val plus = Terminal[Token.Plus]
+      val intLit = Terminal[Token.IntLit]
 
-    val shifted = filtered.map(_.toItem).map(_.shift)
+      override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
+      override val start = expr
+      override val precedence = Precedence().left(times, plus)
 
-    val before = shifted.map(_.before)
-    assertEquals(before, Set(Seq(expr)))
+      (expr ::= intLit) { _.value }
+      (expr ::= (expr, plus, expr)) { (l, _, r) => l + r }
+      (expr ::= (expr, times, expr)) { (l, _, r) => l * r }
 
-    val after = shifted.map(_.after).toSet
-    assertEquals(after, Set(Seq.empty[Symbol], Seq(comma, exprList)))
+    val parser = SLRParserGenerator(Arithmetic.grammar).parser
+    val input = Seq(Token.IntLit(2), Token.Plus(), Token.IntLit(3), Token.Times(), Token.IntLit(4), Token.EOF())
+
+    val result = parser(input.iterator)
+    assertEquals(result.getOrElse(0), 20)
   }
 
-  test("Item shift twice") {
-    val filtered = select(_.left == exprList)
-      .map(_.shift)
-      .filterNot(_.after.isEmpty).map(_.shift)
+  test("Precedence equal level right") {
+    object Arithmetic extends LanguageSpec[Int, Token]:
+      val expr = NonTerminal[Int]("expr")
+      val times = Terminal[Token.Times]
+      val plus = Terminal[Token.Plus]
+      val intLit = Terminal[Token.IntLit]
 
-    assertEquals(filtered.size, 1)
-    val item = filtered.head
-    assertEquals(item.before, Seq(expr, comma))
-    assertEquals(item.after, Seq(exprList))
+      override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
+      override val start = expr
+      override val precedence = Precedence().right(times, plus)
+
+      (expr ::= intLit) { _.value }
+      (expr ::= (expr, plus, expr)) { (l, _, r) => l + r }
+      (expr ::= (expr, times, expr)) { (l, _, r) => l * r }
+
+    val parser = SLRParserGenerator(Arithmetic.grammar).parser
+    val input = Seq(Token.IntLit(2), Token.Plus(), Token.IntLit(3), Token.Times(), Token.IntLit(4), Token.EOF())
+
+    val result = parser(input.iterator)
+    assertEquals(result.getOrElse(0), 14)
+  }
+  test("Precedence equal level nonassoc") {
+    object Arithmetic extends LanguageSpec[Int, Token]:
+      val expr = NonTerminal[Int]("expr")
+      val times = Terminal[Token.Times]
+      val plus = Terminal[Token.Plus]
+      val intLit = Terminal[Token.IntLit]
+
+      override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
+      override val start = expr
+      override val precedence = Precedence().nonassoc(times, plus)
+
+      (expr ::= intLit) { _.value }
+      (expr ::= (expr, plus, expr)) { (l, _, r) => l + r }
+      (expr ::= (expr, times, expr)) { (l, _, r) => l * r }
+
+    val parserGen = SLRParserGenerator(Arithmetic.grammar).parserGen
+    val actions = parserGen.actionTable
+
+    assert(actions.find(entry => entry._2.size == 2).isDefined)
   }
 
-  test("State equality") {
-    val state1 = select(_.left == exprList)
-      .map(_.shift)
-    val state2 = select(_.left == exprList)
-      .map(_.shift)
+  test("Precedence rule without terminal") {
+    object Arithmetic extends LanguageSpec[Int, Token]:
+      val expr = NonTerminal[Int]("expr")
+      val binop = NonTerminal[Int]("op")
 
-    assertEquals(state1, state2)
+      val times = Terminal[Token.Times]
+      val plus = Terminal[Token.Plus]
+      val intLit = Terminal[Token.IntLit]
+
+      override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
+      override val start = expr
+      override val precedence = Precedence()
+
+      (binop ::= plus) { _ => 0 }
+      (binop ::= times) { _ => 1 }
+
+      (expr ::= intLit) { _.value }
+      (expr ::= (expr, binop, expr)) { (l, op, r) => if op == 0 then l + r else l * r }
+
+    val parser = SLRParserGenerator(Arithmetic.grammar).parser
+    val input = Seq(Token.IntLit(2), Token.Plus(), Token.IntLit(3), Token.Times(), Token.IntLit(4), Token.EOF())
+
+    val result = parser(input.iterator)
+    assertEquals(result.getOrElse(0), 14)
   }
 
-  test("Closure 1") {
-    val state = select(_.right == Seq(expr))
-    val candidates = rules.map(_.toItem)
+  test("Manual precedence 1") {
+    object Arithmetic extends LanguageSpec[Int, Token]:
+      val exprAdd = NonTerminal[Int]("expr+")
+      val exprMul = NonTerminal[Int]("exprx")
 
-    val res = TestLR.stateClosure(state, candidates)
+      val times = Terminal[Token.Times]
+      val plus = Terminal[Token.Plus]
+      val intLit = Terminal[Token.IntLit]
 
-    val diff = candidates -- res
+      override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
+      override val start = exprAdd
 
-    val expDiff = select(_.right.contains(comma))
-    assertEquals(diff, expDiff)
-    assertEquals(diff.size, 1)
-    assertEquals(diff.head.after, Seq(expr, comma, exprList))
+      (exprAdd ::= exprMul) { identity }
+      (exprAdd ::= (exprAdd, plus, exprMul)) { (l,_,r) => l + r }
+      (exprMul ::= intLit) { _.value }
+      (exprMul ::= (exprMul, times, intLit)) { (l,_,r) => l * r.value }
+
+    val parser = SLRParserGenerator(Arithmetic.grammar).parser
+    val input = Seq(Token.IntLit(2), Token.Plus(), Token.IntLit(3), Token.Times(), Token.IntLit(4), Token.EOF())
+
+    val result = parser(input.iterator)
+    assertEquals(result.getOrElse(0), 14)
+  }
+  test("Manual precedence 2 (right)") {
+    object Arithmetic extends LanguageSpec[Int, Token]:
+      val expr = NonTerminal[Int]("expr")
+
+      val times = Terminal[Token.Times]
+      val plus = Terminal[Token.Plus]
+      val intLit = Terminal[Token.IntLit]
+
+      override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
+      override val start = expr
+
+      (expr ::= intLit) { _.value }
+      (expr ::= (intLit, plus, expr)) { (l,_,r) => l.value + r }
+      (expr ::= (intLit, times, expr)) { (l,_,r) => l.value * r }
+
+    val parser = SLRParserGenerator(Arithmetic.grammar).parser
+    val input = Seq(Token.IntLit(2), Token.Plus(), Token.IntLit(3), Token.Times(), Token.IntLit(4), Token.EOF())
+
+    val result = parser(input.iterator)
+    assertEquals(result.getOrElse(0), 14)
+  }
+  test("Manual precedence 3 (left)") {
+    object Arithmetic extends LanguageSpec[Int, Token]:
+      val expr = NonTerminal[Int]("expr")
+
+      val times = Terminal[Token.Times]
+      val plus = Terminal[Token.Plus]
+      val intLit = Terminal[Token.IntLit]
+
+      override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
+      override val start = expr
+
+      (expr ::= intLit) { _.value }
+      (expr ::= (expr, plus, intLit)) { (l,_,r) => l + r.value }
+      (expr ::= (expr, times, intLit)) { (l,_,r) => l * r.value }
+
+    val parser = SLRParserGenerator(Arithmetic.grammar).parser
+    val input = Seq(Token.IntLit(2), Token.Plus(), Token.IntLit(3), Token.Times(), Token.IntLit(4), Token.EOF())
+
+    val result = parser(input.iterator)
+    assertEquals(result.getOrElse(0), 20)
   }
 
-  test("Closure 2") {
-    // expr ::= funcId lpar . exprList rpar
-    val startItem = select(_.right.head == funcId).map(_.shift.shift).head
+  test("RR conflict") {
+    object Arithmetic extends LanguageSpec[Int, Token]:
+      val expr = NonTerminal[Int]("expr")
 
-    val cls = TestLR.closure(Set(startItem))
+      val times = Terminal[Token.Times]
+      val plus = Terminal[Token.Plus]
+      val intLit = Terminal[Token.IntLit]
 
-    assertEquals(cls, rules.map(_.toItem) + startItem)
+      override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
+      override val start = expr
+
+      (expr ::= intLit) { _.value }
+      (expr ::= (expr, plus, expr)) { (l,_,r) => l + r }
+      (expr ::= (expr, plus, expr)) { (l,_,r) => l * r }
+
+    val parserGen = SLRParserGenerator(Arithmetic.grammar).parserGen
+    val actions = parserGen.actionTable
+
+    assert(actions.find(entry => entry._2.size == 2).isDefined)
+    assert(actions.find(entry => entry._2.size == 3).isDefined)
   }
 
-  test("GOTO emtpy") {
-    // expr ::= funcId lpar . exprList rpar
-    val state = select(_.right.head == funcId).map(_.shift.shift)
-    assertEquals(TestLR.goto(state, comma), Set())
-  }
-  test("GOTO same") {
-    // expr ::= funcId lpar . exprList rpar
-    val state = select(_.right.head == funcId).map(_.shift.shift)
-    assertEquals(TestLR.goto(state, exprList), state.map(_.shift))
-  }
+  test("RR conflict report") {
+    object Arithmetic extends LanguageSpec[Int, Token]:
+      val expr = NonTerminal[Int]("expr")
 
-  test("GOTO 3") {
-    // expr ::= expr . times expr
-    val state = select(_.right.contains(times)).map(_.shift)
+      val times = Terminal[Token.Times]
+      val plus = Terminal[Token.Plus]
+      val intLit = Terminal[Token.IntLit]
 
-    assertEquals(TestLR.goto(state, times), state.map(_.shift) ++ rules.filter(_.left == expr).map(_.toItem))
-  }
-  test("GOTO all") {
-    val state = select(r => r.left == expr && r.right.head == expr)
-      .map(_.shift)
-    assertEquals(state.size, 3)
+      override val eof = Terminal[Token.EOF]
+      override val error = Terminal[Token.ERROR]
+      override val start = expr
 
-    val gotoAll = TestLR.goto(state)
-    assertEquals(gotoAll.size, 3)
-    assertEquals(gotoAll.keys.toSet, Set((state, plus), (state, minus), (state, times)))
+      (expr ::= intLit) { _.value }
+      (expr ::= (expr, plus, expr)) { (l,_,r) => l + r }
+      (expr ::= (expr, plus, expr)) { (l,_,r) => l * r }
 
-    assertEquals(gotoAll(state, plus).toSet, TestLR.goto(state, plus))
-    assertEquals(gotoAll(state, minus).toSet, TestLR.goto(state, minus))
-    assertEquals(gotoAll(state, times).toSet, TestLR.goto(state, times))
-  }
-  test("lrAutomaton") {
-    val automaton = TestLR.lrAutomaton
-    val startState = TestLR.closure(Set(TestLR.augmentedRule.toItem))
-
-    val toExpr = TestLR.goto(startState, expr)
-    assertEquals(automaton(startState, expr), toExpr)
-
-    val toFuncId = TestLR.goto(startState, funcId)
-    assertEquals(automaton(startState, funcId), toFuncId)
-    val toLPar = TestLR.goto(toFuncId, lpar)
-    assertEquals(automaton(toFuncId, lpar), toLPar)
+    val ex = intercept[UnresolvedConflictException] {
+      val parser = SLRParserGenerator(Arithmetic.grammar).parser
+    }
+    assert(ex.getMessage().startsWith("Unresolved conflicts. Report written to"))
   }
 
-  test("first") {
-    val first = TestLR.first
-    assertEquals(first(expr), Set(intLit, funcId, lpar))
-    assertEquals(first(exprList), Set(intLit, funcId, lpar))
-    assertEquals(first(plus), Set(plus))
-  }
-
-  test("follow") {
-    val follow = TestLR.follow
-    assertEquals(follow(expr), Set(rpar, plus, times, minus, comma, eof))
-    assertEquals(Set(rpar), follow(exprList))
-  }
 }
