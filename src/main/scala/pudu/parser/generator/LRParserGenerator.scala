@@ -55,15 +55,14 @@ class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tree
   /** uses precedence to solve shift reduce conflicts. Shifts by default in
    *  accordance to tradition (https://www.gnu.org/software/bison/manual/html_node/How-Precedence.html) */
   def shiftReduceResolution(from: StateT, to: StateT)(rule: RuleT, terminal: Terminal[Token]): ActionTableEntry =
-    val lastTerminalOfRule = rule.right.findLast(isTerminal)
-    if !lastTerminalOfRule.isDefined then
-      // shift by default
-      shiftTo(from, terminal, to)
-    else precedence.max(lastTerminalOfRule.get, terminal) match
-      case Side.Left => reduceBy(from, terminal, rule)
-      case Side.Right => shiftTo(from, terminal, to)
-      case Side.Neither => shiftTo(from, terminal, to) // shift by default
-      case Side.Error => shiftTo(from, terminal, to).merge(reduceBy(from, terminal, rule)) // combine shift and reduce
+    /* precedence compares the last terminal in the reduced rule, with the terminal to be shifted */
+    rule.right.findLast(isTerminal)
+              .map(precedence.max(_, terminal)) match
+      case None => shiftTo(from, terminal, to) // shift by default
+      case Some(Side.Left) => reduceBy(from, terminal, rule)
+      case Some(Side.Right) => shiftTo(from, terminal, to)
+      case Some(Side.Neither) => shiftTo(from, terminal, to) // shift by default
+      case Some(Side.Error) => shiftTo(from, terminal, to).merge(reduceBy(from, terminal, rule)) // combine shift and reduce
 
   lazy val (actionTable, gotoTable) =
     type LRTables = (ActionTable, GotoTable)
@@ -91,8 +90,10 @@ class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tree
               /* If there is a conflict, apply resolution only if there is only one reduce action.
                * In case of a rr conflict just return everything */
               val rules = reduceActions(fromState, terminal)
-              if rules.size == 1 then shiftReduceResolution(fromState, toState)(rules.head, terminal)
-              else reduceTableEntry(fromState, terminal, rules).merge(shiftEntry)
+              if rules.size == 1 then
+                shiftReduceResolution(fromState, toState)(rules.head, terminal)
+              else
+                reduceTableEntry(fromState, terminal, rules).merge(shiftEntry)
             else shiftEntry
           (actionsTable + tableEntry, gotoTable)
         case _: NonTerminal[_] =>
