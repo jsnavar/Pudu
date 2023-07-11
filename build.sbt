@@ -1,6 +1,6 @@
-val scala3Version = "3.2.2"
+val scala3Version = "3.3.0"
 
-scalacOptions ++= Seq("-Yretain-trees")
+lazy val Benchmark = config("bench") extend Test
 
 lazy val root = project
   .in(file("."))
@@ -9,9 +9,23 @@ lazy val root = project
     version := "0.2.1",
 
     scalaVersion := scala3Version,
+
     githubOwner := "jsnavar",
     githubRepository := "Pudu",
-    jacocoReportSettings := JacocoReportSettings().withFormats(JacocoReportFormats.ScalaHTML)
-                                                  .withThresholds(JacocoThresholds(line = 90)),
-    libraryDependencies += "org.scalameta" %% "munit" % "0.7.29" % Test
-  )
+    scalacOptions ++= Seq("-Yretain-trees", "-deprecation"),
+
+    coverageEnabled := true,
+
+    libraryDependencies ++= Seq("org.scalameta" %% "munit" % "0.7.29" % Test,
+                          ("com.storm-enroute" %% "scalameter" % "0.21" % Test).cross(CrossVersion.for3Use2_13),
+                          ("com.storm-enroute" %% "scalameter-core" % "0.21" % Test).cross(CrossVersion.for3Use2_13),
+                          "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.3"),
+
+    testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
+    Benchmark / logBuffered := false,
+    Benchmark / parallelExecution := false,
+    Benchmark / testOptions := Seq(Tests.Filter(s => s.contains("Bench"))),
+    Benchmark / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
+    Test / testOptions += Tests.Filter(s => !s.contains("Bench")))
+  .configs(Benchmark)
+  .settings(inConfig(Benchmark)(Defaults.testTasks))
