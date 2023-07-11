@@ -32,11 +32,11 @@ class LRAutomatonTest extends munit.FunSuite {
 
     val gotoAll = lra.goto(state)
     assertEquals(gotoAll.size, 3)
-    assertEquals(gotoAll.keys.toSet, Set((state, plus), (state, minus), (state, times)))
+    assertEquals(gotoAll.keys.toSet, Set((plus), (minus), (times)))
 
-    assertEquals(gotoAll(state, plus).toSet, lra.goto(state, plus))
-    assertEquals(gotoAll(state, minus).toSet, lra.goto(state, minus))
-    assertEquals(gotoAll(state, times).toSet, lra.goto(state, times))
+    assertEquals(gotoAll(plus).toSet, lra.goto(state, plus))
+    assertEquals(gotoAll(minus).toSet, lra.goto(state, minus))
+    assertEquals(gotoAll(times).toSet, lra.goto(state, times))
   }
   test("lrAutomaton") {
     val automaton = lra.lrAutomaton

@@ -8,7 +8,7 @@ class LRReport[Tree, Token <: reflect.Enum](
   _rules: Set[Rule[Tree, Token]],
   _tokenNames: Map[Int, String],
   _indexedStates: Map[State[Tree, Token], Int],
-  _lrAutomaton: Map[(State[Tree, Token], Symbol), State[Tree, Token]],
+  _lrAutomaton: scala.collection.Map[(State[Tree, Token], Symbol), State[Tree, Token]],
   _actionTable: Map[(Int,Int), Set[SRAction]],
   _gotoTable: Map[(Int,Symbol), Int]):
 

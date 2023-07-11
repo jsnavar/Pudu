@@ -1,5 +1,7 @@
 package pudu.parser.generator
 
+import scala.collection.mutable.{AnyRefMap, LinkedHashSet, HashSet}
+
 import pudu.grammar.Symbol
 
 class LRAutomaton[Tree, Token <: reflect.Enum](startState: State[Tree, Token], closure: State[Tree, Token] => State[Tree, Token]):
@@ -16,27 +18,29 @@ class LRAutomaton[Tree, Token <: reflect.Enum](startState: State[Tree, Token], c
 
   /** computes the goto of every relevant symbol in 'state', returning a map such that
    *  (goto(state))(symbol) equals goto(state, symbol) */
-  def goto(state: StateT): Map[(StateT, Symbol), StateT] =
+  def goto(state: StateT): Map[Symbol, StateT] =
     state.filterNot(_.after.isEmpty)
-      .groupBy(_.after.head)
-      .map((symbol, gotoState) => ((state, symbol), closure(gotoState.map(_.shift))))
+      .groupMap(_.after.head)(_.shift)
+      .transform((_,v) => closure(v))
 
-  /** Computes the LR automaton, i.e., a map that given a state and a symbol, returns
-   *  the next state */
-  lazy val (lrAutomaton: Map[(StateT, Symbol), StateT], states: Set[StateT]) =
-    def computeAutomaton(current: Map[(StateT, Symbol), StateT],
-                         visited: Set[StateT],
-                         frontier: Set[StateT]): (Map[(StateT, Symbol), StateT], Set[StateT]) =
-      // Compute goto for each state in frontier, getting a Set[((StateT, Symbol), StateT)] with all the results
-      val newEdges = frontier.flatMap(goto)
-      // Finds all states reached in the previous step, that had not been visited before
-      val newStates = newEdges.map(_._2) -- visited
-      // Continue until no new state is found
-      if newStates.isEmpty then (current ++ newEdges, visited)
-      else
-        computeAutomaton(current ++ newEdges, visited ++ newStates, newStates)
-    computeAutomaton(Map.empty, Set(startState), Set(startState))
+  lazy val lrAutomaton: scala.collection.Map[(StateT, Symbol), StateT] =
+    val current = AnyRefMap.empty[(StateT, Symbol), StateT]
+    val visited = HashSet(startState)
+    val newStates = HashSet.empty[StateT]
 
-  lazy val indexedStates =
-    val nonStartingStates = states - startState
-    nonStartingStates.zip(1 until states.size).toMap + (startState -> 0)
+    def computeAutomaton(frontier: Set[StateT]): scala.collection.Map[(StateT, Symbol), StateT] =
+      newStates.clear()
+      for
+        state <- frontier
+        case (sym, to) <- goto(state)
+      do
+        current += (state, sym) -> to
+        if !visited.contains(to) then
+          newStates += to
+          visited += to
+
+      if newStates.isEmpty then current
+      else computeAutomaton(newStates.toSet)
+    computeAutomaton(Set(startState))
+
+  lazy val indexedStates = (LinkedHashSet(startState) ++= lrAutomaton.values).zipWithIndex.toMap

@@ -5,7 +5,7 @@ import pudu.parser._
 
 /** Generates an LR parser from the automaton, and reduce actions. */
 class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tree,Token],
-                                                           lrAutomaton: Map[(State[Tree, Token], Symbol), State[Tree, Token]],
+                                                           lrAutomaton: scala.collection.Map[(State[Tree, Token], Symbol), State[Tree, Token]],
                                                            indexedStates: Map[State[Tree, Token], Int],
                                                            reduceActions: Map[(State[Tree, Token], Terminal[Token]), Iterable[Rule[Tree, Token]]]):
   import grammar.{eof, isTerminal, precedence, error, terminalNames}
