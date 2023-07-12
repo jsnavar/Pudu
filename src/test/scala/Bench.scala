@@ -3,7 +3,7 @@ import org.scalameter.api._
 import pudu.parser.generator._
 
 trait SLRTimeBenchmark extends Bench.LocalTime {
-  val sizes = Gen.range("size")(1, 150, 25)
+  val sizes = Gen.range("size")(1, 201, 50)
 
   val pgs = for {
     size <- sizes

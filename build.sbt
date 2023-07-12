@@ -9,11 +9,9 @@ lazy val root = project
     version := "0.2.1",
 
     scalaVersion := scala3Version,
-
     githubOwner := "jsnavar",
     githubRepository := "Pudu",
     scalacOptions ++= Seq("-Yretain-trees", "-deprecation"),
-
     coverageEnabled := true,
 
     libraryDependencies ++= Seq("org.scalameta" %% "munit" % "0.7.29" % Test,
@@ -26,6 +24,8 @@ lazy val root = project
     Benchmark / parallelExecution := false,
     Benchmark / testOptions := Seq(Tests.Filter(s => s.contains("Bench"))),
     Benchmark / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
+    Benchmark / fork := true,
+    Benchmark / javaOptions ++= Seq("-Xmx8G", "-XX:+UseG1GC"),
     Test / testOptions += Tests.Filter(s => !s.contains("Bench")))
   .configs(Benchmark)
   .settings(inConfig(Benchmark)(Defaults.testTasks))
