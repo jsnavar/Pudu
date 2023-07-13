@@ -50,7 +50,7 @@ class LR1ParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tre
 
     reduceByCases.groupMap(t => (t._1, t._2))(_._3)
 
-  val parserGen = LRParserGenerator(augmentedGrammar, lra.lrAutomaton, lra.indexedStates, reduceActions)
+  val parserGen = LRParserGenerator(augmentedGrammar, lra.lrAutomaton, startState, lra.indexedStates, reduceActions)
 
   lazy val report = parserGen.report
 

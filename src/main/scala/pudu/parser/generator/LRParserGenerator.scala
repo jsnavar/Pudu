@@ -5,7 +5,8 @@ import pudu.parser._
 
 /** Generates an LR parser from the automaton, and reduce actions. */
 class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tree,Token],
-                                                           lrAutomaton: scala.collection.Map[(State[Tree, Token], Symbol), State[Tree, Token]],
+                                                           lrAutomaton: Map[(State[Tree, Token], Symbol), State[Tree, Token]],
+                                                           startState: State[Tree, Token],
                                                            indexedStates: Map[State[Tree, Token], Int],
                                                            reduceActions: Map[(State[Tree, Token], Terminal[Token]), Iterable[Rule[Tree, Token]]]):
   import grammar.{eof, isTerminal, precedence, error, terminalNames}
@@ -24,6 +25,8 @@ class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tree
 
   /* ((stateIndex, NonTerminal), stateIndex) */
   type GotoTableEntry = ((Int, Symbol), Int)
+
+  type LRTables = (ActionTable, GotoTable)
 
   /** builds the action table key */
   def actionTableKey(from: StateT, terminal: Terminal[Token]) =
@@ -52,11 +55,11 @@ class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tree
       require(entry._1 == that._1)
       entry._1 -> (entry._2 ++ that._2)
 
-  /** uses precedence to solve shift reduce conflicts. Shifts by default in
-   *  accordance to tradition (https://www.gnu.org/software/bison/manual/html_node/How-Precedence.html) */
-  def shiftReduceResolution(from: StateT, to: StateT)(rule: RuleT, terminal: Terminal[Token]): ActionTableEntry =
-    /* precedence compares the last terminal in the reduced rule, with the terminal to be shifted */
-    rule.right.findLast(isTerminal)
+  /** uses precedence to solve shift reduce conflicts. Shifts by default
+   *  following tradition (https://www.gnu.org/software/bison/manual/html_node/How-Precedence.html) */
+  def shiftReduceResolution(from: StateT, terminal: Terminal[Token], to: StateT, rule: RuleT): ActionTableEntry =
+    /* precedence compares the last terminal in the reduced rule with the terminal to be shifted */
+    rule.right.findLast(isTerminal) // findLast returns an Option
               .map(precedence.max(_, terminal)) match
       case None => shiftTo(from, terminal, to) // shift by default
       case Some(Side.Left) => reduceBy(from, terminal, rule)
@@ -64,11 +67,11 @@ class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tree
       case Some(Side.Neither) => shiftTo(from, terminal, to) // shift by default
       case Some(Side.Error) => shiftTo(from, terminal, to).merge(reduceBy(from, terminal, rule)) // combine shift and reduce
 
-  lazy val (actionTable, gotoTable) =
-    type LRTables = (ActionTable, GotoTable)
-
-    def reduceTableEntry(from: StateT, terminal: Terminal[Token], rules: Iterable[RuleT]): ActionTableEntry =
-      actionTableKey(from, terminal) -> rules.map(SRAction.Reduce(_)).toSet[SRAction]
+  def computeTables: LRTables =
+    /* like reduceBy, but for an Iterable of rules */
+    def reduceByAny(from: StateT, terminal: Terminal[Token], rules: Iterable[RuleT]): ActionTableEntry =
+      val key = actionTableKey(from, terminal)
+      key -> rules.map(SRAction.Reduce(_)).toSet[SRAction]
 
     /* Update LRTables for a given LR automaton edge */
     def updateTables(tables: LRTables, edge: ((StateT, Symbol), StateT)): LRTables =
@@ -79,22 +82,20 @@ class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tree
       symbol match
         case t: Terminal[_] =>
           val terminal = t.asInstanceOf[Terminal[Token]]
-          /* This assert is true by construction of the LR automaton */
+
+          // true by construction of the automaton
           assert(fromState.exists(item => !item.after.isEmpty && item.after.head == terminal))
 
           val shiftEntry = shiftTo(fromState, terminal, toState)
+          val reduceByRules = reduceActions.getOrElse((fromState, terminal), Set.empty)
 
           /* Check if there is a SR conflict */
-          val tableEntry =
-            if reduceActions.contains(fromState, terminal) then
-              /* If there is a conflict, apply resolution only if there is only one reduce action.
-               * In case of a rr conflict just return everything */
-              val rules = reduceActions(fromState, terminal)
-              if rules.size == 1 then
-                shiftReduceResolution(fromState, toState)(rules.head, terminal)
-              else
-                reduceTableEntry(fromState, terminal, rules).merge(shiftEntry)
-            else shiftEntry
+          val tableEntry = reduceByRules.size match
+            case 0 => shiftEntry
+            case 1 => shiftReduceResolution(fromState, terminal, toState, reduceByRules.head)
+            /* sr resolution is not used if there is a rr conflict */
+            case _ => reduceByAny(fromState, terminal, reduceByRules).merge(shiftEntry)
+
           (actionsTable + tableEntry, gotoTable)
         case _: NonTerminal[_] =>
           /* For non terminals, add an entry to the goto table */
@@ -104,22 +105,21 @@ class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tree
           (actionsTable, gotoTable + gotoEntry)
 
     // Transform the Map reduceAction into an initial ActionTable
-    val reduce = reduceActions.map { case ((from, terminal), rules) => reduceTableEntry(from, terminal, rules) }
+    val reduce = reduceActions.map { case ((from, terminal), rules) => reduceByAny(from, terminal, rules) }
 
     // Compute tables. Actions table is partial because it lacks the accept condition */
     val (partialActionTable, gotoTable) = lrAutomaton.foldLeft((reduce, Map.empty))(updateTables)
 
     // add accept condition.
-    // the start state always has index 0
-    val startState = indexedStates.find((_, v) => v == 0).get._1
 
     // as the grammar is augmented, grammar.startRules contains
     // only one rule, which is of the form S' -> S. langStart refers to S
     val langStart = grammar.startRules.head.right.head
     val acceptState = lrAutomaton(startState, langStart)
-    val acceptEntry = acceptOn(acceptState)
 
-    (partialActionTable + acceptEntry, gotoTable)
+    (partialActionTable + acceptOn(acceptState), gotoTable)
+
+  lazy val (actionTable, gotoTable) = computeTables
 
   lazy val report = LRReport(grammar.rules,
                              grammar.terminalNames,
@@ -182,5 +182,5 @@ class LRParserGenerator[Tree, Token <: scala.reflect.Enum](grammar: Grammar[Tree
         report.writeAllToFile(writeTo)
 
         throw UnresolvedConflictException(writeTo)
-      else actionTable.map((k,v) => k -> v.head)
+      else actionTable.transform((_,v) => v.head)
     lrParse(actions, gotoTable)

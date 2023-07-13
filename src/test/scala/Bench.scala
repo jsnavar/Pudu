@@ -17,9 +17,9 @@ trait SLRTimeBenchmark extends Bench.LocalTime {
       }
     }
 
-    measure method "tables" in {
+    measure method "computeTables" in {
       using(pgs) in { pg =>
-        LRParserGenerator(pg.augmentedGrammar, pg.lra.lrAutomaton, pg.lra.indexedStates, pg.reduceActions).gotoTable
+        LRParserGenerator(pg.augmentedGrammar, pg.lra.lrAutomaton, pg.startState, pg.lra.indexedStates, pg.reduceActions).computeTables
       }
     }
   }
