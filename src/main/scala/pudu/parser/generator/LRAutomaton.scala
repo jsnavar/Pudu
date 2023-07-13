@@ -23,12 +23,12 @@ class LRAutomaton[Tree, Token <: reflect.Enum](startState: State[Tree, Token], c
       .groupMap(_.after.head)(_.shift)
       .transform((_,v) => closure(v))
 
-  lazy val lrAutomaton: scala.collection.Map[(StateT, Symbol), StateT] =
+  lazy val lrAutomaton: Map[(StateT, Symbol), StateT] =
     val current = AnyRefMap.empty[(StateT, Symbol), StateT]
     val visited = HashSet(startState)
     val newStates = HashSet.empty[StateT]
 
-    def computeAutomaton(frontier: Set[StateT]): scala.collection.Map[(StateT, Symbol), StateT] =
+    def computeAutomaton(frontier: Set[StateT]): Map[(StateT, Symbol), StateT] =
       newStates.clear()
       for
         state <- frontier
@@ -39,7 +39,7 @@ class LRAutomaton[Tree, Token <: reflect.Enum](startState: State[Tree, Token], c
           newStates += to
           visited += to
 
-      if newStates.isEmpty then current
+      if newStates.isEmpty then current.toMap
       else computeAutomaton(newStates.toSet)
     computeAutomaton(Set(startState))
 
